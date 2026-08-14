@@ -7,18 +7,32 @@
 
 #include <common/socket.h>
 #include <DreamNet/address.h>
+#include <DreamNet/eventLoop.h>
 
-class EventLoop;
+#include <memory>
+
+namespace Dream {
+    class EventLoop;
+}
+
 class Channel;
 
 class Acceptor {
 public:
-    Acceptor(EventLoop* loop, const Dream::Address& address);
+    using NewConnectionFunc = std::function<void(int fd, const Dream::Address& addr)>;
+    Acceptor(Dream::EventLoop::Impl* loop, const Dream::Address& address);
+
+    void listen();
+    void setNewConnectionFunc(NewConnectionFunc func);
 
 private:
     void initSocket(const Dream::Address& address);
+    void onAccept();
 
 private:
-    EventLoop* loop_ = nullptr;
+    Dream::EventLoop::Impl* loop_ = nullptr;
     Socket socket_;
+
+    std::unique_ptr<Channel> acceptChannel_;
+    NewConnectionFunc newConnectionFunc_{};
 };

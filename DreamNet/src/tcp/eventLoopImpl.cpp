@@ -26,6 +26,9 @@ EventLoop::Impl::Impl() :
 
     poller_.reset(Poller::getDefaultPoller());
     wakeupChannel_ = std::make_unique<Channel>(this, evtFD_);
+    if (!wakeupChannel_) {
+        LOG_FATAL("wakeup channel is null");
+    }
     wakeupChannel_->enableReading();        // 设置可读标志后并设置到epoll
     wakeupChannel_->setOnReadEvent(std::bind(&Impl::onWakeUp, this));
 }

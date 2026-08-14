@@ -53,7 +53,7 @@ public:
     void handleEvent() const;
 
 private:
-    Dream::EventLoop::Impl* loop_;
+    Dream::EventLoop::Impl* loop_ = nullptr;
     int fd_ = -1;
 
     uint32_t listenEvent_{};                // channel自身关心的事件

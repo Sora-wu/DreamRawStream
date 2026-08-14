@@ -25,6 +25,10 @@ uint16_t Address::getPort() const {
     return ntohs(addr_.sin_port);
 }
 
-const sockaddr_in* Address::getAddr() const {
-    return &addr_;
+void Address::setAddr(const sockaddr_in& addr) {
+    addr_ = addr;
+}
+
+sockaddr_in Address::getAddr() const {
+    return addr_;
 }

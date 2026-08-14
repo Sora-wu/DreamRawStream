@@ -10,6 +10,7 @@
 #include <thread>
 
 class Channel;
+class Acceptor;
 
 namespace Dream {
     class EventLoop {
@@ -32,6 +33,7 @@ namespace Dream {
 
     private:
         friend class ::Channel;
+        friend class ::Acceptor;
         class Impl;
         std::unique_ptr<Impl> impl_;
     };

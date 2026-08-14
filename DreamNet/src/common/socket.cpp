@@ -12,8 +12,8 @@
 using namespace Dream;
 
 Socket::Socket(int type) {
-    int fd = socket(AF_INET, type, 0);
-    if (fd < 0) {
+    fd_ = socket(AF_INET, type, 0);
+    if (fd_ < 0) {
         LOG_FATAL("socket fail! {}", strerror(errno));
     }
 }
@@ -24,7 +24,8 @@ Socket::~Socket() {
 }
 
 void Socket::bind(const Address& address) {
-    if (::bind(fd_, (sockaddr*)address.getAddr(), sizeof(sockaddr_in))) {
+    sockaddr_in addr = address.getAddr();
+    if (::bind(fd_, (sockaddr*)&addr, sizeof(sockaddr_in))) {
         LOG_FATAL("bind error, fd: {}, {}", fd_, strerror(errno));
     }
 }
@@ -32,6 +33,24 @@ void Socket::bind(const Address& address) {
 void Socket::listen() {
     if (::listen(fd_, SOMAXCONN) < 0) {
         LOG_FATAL("listen error, fd: {}, {}", fd_, strerror(errno));
+    }
+}
+
+int Socket::accept(Address& peerAddress) {
+    sockaddr_in addr{};
+    socklen_t addrlen = sizeof(addr);
+    int connfd = ::accept4(fd_, (sockaddr*)&addr, &addrlen, SOCK_CLOEXEC | SOCK_NONBLOCK);
+    if (connfd < 0) {
+        LOG_ERROR("accept error, fd: {}, {}", fd_, strerror(errno));
+    }
+
+    peerAddress.setAddr(addr);
+    return connfd;
+}
+
+void Socket::shutdown() const {
+    if (::shutdown(fd_, SHUT_RDWR) < 0) {
+        LOG_ERROR("shutdown error");
     }
 }
 
