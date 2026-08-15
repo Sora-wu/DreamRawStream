@@ -4,23 +4,45 @@
 //
 
 #include <DreamNet/tcpConnection.h>
-#include <tcp/channel.h>
+#include <tcp/tcpConnectionImpl.h>
+#include <tcp/eventLoopImpl.h>
 
 using namespace Dream;
 
 TcpConnection::TcpConnection(EventLoop* eventLoop, int fd, const Address& localAddress, const Address& remoteAddress) :
-    loop_(eventLoop), localAddress_(localAddress), remoteAddress_(remoteAddress) {
-    socket_.setFd(fd);
+    impl_(std::make_unique<detail::TcpConnectionImpl>(this, detail::EventLoopImpl::from(eventLoop), fd, localAddress, remoteAddress)) {
 }
 
-void TcpConnection::setConnectionCallback(ConnectionCallback connectionCallback) {
-    connectionCallback_ = std::move(connectionCallback);
+TcpConnection::~TcpConnection() = default;
+
+void TcpConnection::connectEstablished() const {
+    impl_->connectEstablished();
 }
 
-void TcpConnection::setMessageCallback(MessageCallback messageCallback) {
-    messageCallback_ = std::move(messageCallback);
+void TcpConnection::connectDestroyed() const {
+    impl_->connectDestroyed();
 }
 
-void TcpConnection::setCloseCallback(CloseCallback closeCallback) {
-    closeCallback_ = std::move(closeCallback);
+bool TcpConnection::isConnected() const {
+    return impl_->isConnected();
+}
+
+void TcpConnection::send(Buffer& buffer) const {
+    impl_->send(buffer);
+}
+
+void TcpConnection::shutdown() const {
+    impl_->shutdown();
+}
+
+void TcpConnection::setConnectionCallback(ConnectionCallback cb) const {
+    impl_->setConnectionCallback(std::move(cb));
+}
+
+void TcpConnection::setMessageCallback(MessageCallback cb) const {
+    impl_->setMessageCallback(std::move(cb));
+}
+
+void TcpConnection::setCloseCallback(CloseCallback cb) const {
+    impl_->setCloseCallback(std::move(cb));
 }

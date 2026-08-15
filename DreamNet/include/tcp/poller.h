@@ -7,15 +7,17 @@
 
 #include <vector>
 
-class Channel;
+namespace Dream::detail {
+    class Channel;
 
-class Poller {
-public:
-    virtual ~Poller() = default;
-    static Poller* getDefaultPoller();
+    class Poller {
+    public:
+        virtual ~Poller() = default;
+        static Poller* getDefaultPoller();
 
-    virtual void poll(std::vector<Channel*>& activeChannels, int timeout) = 0;
+        virtual void poll(std::vector<Channel*>& activeChannels, int timeout) = 0;
 
-    virtual void updateChannel(Channel* channel) = 0;
-    virtual void removeChannel(Channel* channel) = 0;
-};
+        virtual void updateChannel(Channel* channel) = 0;
+        virtual void removeChannel(Channel* channel) = 0;
+    };
+} // namespace Dream::detail

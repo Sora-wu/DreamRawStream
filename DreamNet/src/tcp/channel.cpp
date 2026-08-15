@@ -5,9 +5,10 @@
 
 #include <tcp/channel.h>
 #include <tcp/eventLoopImpl.h>
-#include <common/define.h>
 
-using namespace Dream;
+#include <utility>
+
+using namespace Dream::detail;
 
 int Channel::getFd() const {
     return fd_;
@@ -50,6 +51,11 @@ void Channel::disableReading() {
 
 void Channel::disableWriting() {
     listenEvent_ &= ~EVENT_WRITE;
+    update();
+}
+
+void Channel::disableAll() {
+    listenEvent_ = EVENT_NONE;
     update();
 }
 

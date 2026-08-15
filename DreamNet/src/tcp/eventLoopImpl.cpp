@@ -10,14 +10,15 @@
 
 #include <sys/eventfd.h>
 #include <unistd.h>
-
-using namespace Dream;
+#include <deque>
 
 namespace {
     constexpr int TIMEOUT = 1e4;
 }
 
-EventLoop::Impl::Impl() :
+using namespace Dream::detail;
+
+EventLoopImpl::EventLoopImpl() :
     evtFD_(eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC)),
     threadId_(std::this_thread::get_id()) {
     if (evtFD_) {
@@ -29,15 +30,14 @@ EventLoop::Impl::Impl() :
     if (!wakeupChannel_) {
         LOG_FATAL("wakeup channel is null");
     }
-    wakeupChannel_->enableReading();        // 设置可读标志后并设置到epoll
-    wakeupChannel_->setOnReadEvent(std::bind(&Impl::onWakeUp, this));
+    wakeupChannel_->enableReading(); // 设置可读标志后并设置到epoll
+    wakeupChannel_->setOnReadEvent([this] { onWakeUp(); });
 }
 
-EventLoop::Impl::~Impl() {
-
+EventLoopImpl::~EventLoopImpl() {
 }
 
-void EventLoop::Impl::loop() {
+void EventLoopImpl::loop() {
     while (!isQuit_) {
         activeChannels_.clear();
         poller_->poll(activeChannels_, TIMEOUT);
@@ -50,11 +50,11 @@ void EventLoop::Impl::loop() {
     LOG_INFO("Event Loop exit");
 }
 
-void EventLoop::Impl::quit() {
+void EventLoopImpl::quit() {
     isQuit_ = true;
 }
 
-void EventLoop::Impl::wakeup() const {
+void EventLoopImpl::wakeup() const {
     const uint64_t one = 1;
     const uint32_t res = write(evtFD_, &one, sizeof one);
     if (res != sizeof(one)) {
@@ -62,7 +62,7 @@ void EventLoop::Impl::wakeup() const {
     }
 }
 
-void EventLoop::Impl::runInLoop(Functor func) {
+void EventLoopImpl::runInLoop(EventLoop::Functor func) {
     if (isInLoopThread()) {
         func();
         return;
@@ -71,7 +71,7 @@ void EventLoop::Impl::runInLoop(Functor func) {
     queueInLoop(func);
 }
 
-void EventLoop::Impl::queueInLoop(Functor func) {
+void EventLoopImpl::queueInLoop(EventLoop::Functor func) {
     pendingFunctors_.push(std::move(func));
 
     if (!isInLoopThread() || callingPendingFunctors_) {
@@ -80,34 +80,34 @@ void EventLoop::Impl::queueInLoop(Functor func) {
     }
 }
 
-std::thread::id EventLoop::Impl::getThreadId() const {
-    return std::this_thread::get_id();
+std::thread::id EventLoopImpl::getThreadId() const {
+    return threadId_;
 }
 
-bool EventLoop::Impl::isInLoopThread() const {
+bool EventLoopImpl::isInLoopThread() const {
     return threadId_ == std::this_thread::get_id();
 }
 
-void EventLoop::Impl::updateChannel(Channel* channel) const {
+void EventLoopImpl::updateChannel(Channel* channel) const {
     poller_->updateChannel(channel);
 }
 
-void EventLoop::Impl::removeChannel(Channel* channel) const {
+void EventLoopImpl::removeChannel(Channel* channel) const {
     poller_->removeChannel(channel);
 }
 
-void EventLoop::Impl::processPendingFunctors() {
-    std::deque<Functor> tmp;
+void EventLoopImpl::processPendingFunctors() {
+    std::deque<EventLoop::Functor> tmp;
 
     callingPendingFunctors_ = true;
     pendingFunctors_.pop_all(tmp);
-    for (auto &func : tmp) {
+    for (auto& func : tmp) {
         func();
     }
     callingPendingFunctors_ = false;
 }
 
-void EventLoop::Impl::onWakeUp() const {
+void EventLoopImpl::onWakeUp() const {
     uint64_t one{};
     int res = read(evtFD_, &one, sizeof(one));
     if (res != sizeof(one)) {

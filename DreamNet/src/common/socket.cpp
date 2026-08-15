@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <netinet/tcp.h>
 
-using namespace Dream;
+using namespace Dream::detail;
 
 Socket::Socket(int type) {
     fd_ = socket(AF_INET, type, 0);
@@ -19,11 +19,13 @@ Socket::Socket(int type) {
 }
 
 Socket::~Socket() {
-    close(fd_);
-    fd_ = -1;
+    if (fd_ >= 0) {
+        close(fd_);
+        fd_ = -1;
+    }
 }
 
-void Socket::bind(const Address& address) {
+void Socket::bind(const Dream::Address& address) {
     sockaddr_in addr = address.getAddr();
     if (::bind(fd_, (sockaddr*)&addr, sizeof(sockaddr_in))) {
         LOG_FATAL("bind error, fd: {}, {}", fd_, strerror(errno));
@@ -36,7 +38,7 @@ void Socket::listen() {
     }
 }
 
-int Socket::accept(Address& peerAddress) {
+int Socket::accept(Dream::Address& peerAddress) {
     sockaddr_in addr{};
     socklen_t addrlen = sizeof(addr);
     int connfd = ::accept4(fd_, (sockaddr*)&addr, &addrlen, SOCK_CLOEXEC | SOCK_NONBLOCK);

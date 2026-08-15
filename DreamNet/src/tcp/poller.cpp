@@ -6,6 +6,8 @@
 #include <tcp/poller.h>
 #include <tcp/epollPoller.h>
 
+namespace Dream::detail {
+
 Poller* Poller::getDefaultPoller() {
 #ifdef PLATFORM_LINUX
     return new EpollPoller;
@@ -13,3 +15,5 @@ Poller* Poller::getDefaultPoller() {
 
     return nullptr;
 }
+
+}  // namespace Dream::detail

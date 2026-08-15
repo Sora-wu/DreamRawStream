@@ -9,8 +9,9 @@
 #include <functional>
 #include <thread>
 
-class Channel;
-class Acceptor;
+namespace Dream::detail {
+    class EventLoopImpl;
+}
 
 namespace Dream {
     class EventLoop {
@@ -18,6 +19,7 @@ namespace Dream {
         using Functor = std::function<void()>;
 
         EventLoop();
+        ~EventLoop();
         EventLoop(const EventLoop&) = delete;
         EventLoop& operator=(const EventLoop&) = delete;
 
@@ -32,9 +34,7 @@ namespace Dream {
         [[nodiscard]] bool isInLoopThread() const;
 
     private:
-        friend class ::Channel;
-        friend class ::Acceptor;
-        class Impl;
-        std::unique_ptr<Impl> impl_;
+        friend class detail::EventLoopImpl;
+        std::unique_ptr<detail::EventLoopImpl> impl_;
     };
 }

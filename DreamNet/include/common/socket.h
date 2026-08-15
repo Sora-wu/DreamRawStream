@@ -7,30 +7,33 @@
 
 #include <DreamNet/address.h>
 
-class Socket {
-public:
-    Socket() = default;
-    explicit Socket(int type);
+namespace Dream::detail {
+    class Socket {
+    public:
+        Socket() = default;
+        explicit Socket(int type);
 
-    ~Socket();
+        ~Socket();
 
-    void setFd(int fd) {
-        fd_ = fd;
-    }
-    [[nodiscard]] const int& getFd() const {
-        return fd_;
-    }
+        void setFd(int fd) {
+            fd_ = fd;
+        }
 
-    void bind(const Dream::Address& address);
-    void listen();
-    [[nodiscard]] int accept(Dream::Address& peerAddress);
-    void shutdown() const;
+        [[nodiscard]] const int& getFd() const {
+            return fd_;
+        }
 
-    void setTcpNoDelay(bool on) const;
-    void setReUseAddr(bool on) const;
-    void setReUsePort(bool on) const;
-    void setKeepAlive(bool on) const;
+        void bind(const Dream::Address& address);
+        void listen();
+        [[nodiscard]] int accept(Dream::Address& peerAddress);
+        void shutdown() const;
 
-private:
-    int fd_ = 0;
-};
+        void setTcpNoDelay(bool on) const;
+        void setReUseAddr(bool on) const;
+        void setReUsePort(bool on) const;
+        void setKeepAlive(bool on) const;
+
+    private:
+        int fd_ = -1;
+    };
+} // namespace Dream::detail

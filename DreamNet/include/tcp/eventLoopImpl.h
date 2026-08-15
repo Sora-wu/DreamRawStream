@@ -9,43 +9,53 @@
 #include <common/concurrentQueue.hpp>
 
 #include <atomic>
+#include <memory>
+#include <thread>
+#include <vector>
 
-class Channel;
-class Poller;
+namespace Dream::detail {
+    class Channel;
+    class Poller;
 
-class Dream::EventLoop::Impl {
-public:
-    Impl();
-    ~Impl();
+    class EventLoopImpl {
+    public:
+        EventLoopImpl();
+        ~EventLoopImpl();
 
-    void loop();
-    void quit();
+        // 从公共 EventLoop 获取内部 Impl（仅供 detail 内部代码使用）
+        [[nodiscard]] static EventLoopImpl* from(const EventLoop* loop) {
+            return loop->impl_.get();
+        }
 
-    void wakeup() const;
-    void runInLoop(Functor func);
-    void queueInLoop(Functor func);
+        void loop();
+        void quit();
 
-    [[nodiscard]] std::thread::id getThreadId() const;
-    [[nodiscard]] bool isInLoopThread() const;
+        void wakeup() const;
+        void runInLoop(EventLoop::Functor func);
+        void queueInLoop(EventLoop::Functor func);
 
-    ////////////////////Impl特有////////////////////////
-    void updateChannel(Channel* channel) const;
-    void removeChannel(Channel* channel) const;
+        [[nodiscard]] std::thread::id getThreadId() const;
+        [[nodiscard]] bool isInLoopThread() const;
 
-private:
-    void processPendingFunctors();
-    void onWakeUp() const;
+        ////////////////////Impl特有////////////////////////
+        void updateChannel(Channel* channel) const;
+        void removeChannel(Channel* channel) const;
 
-private:
-    int evtFD_ = -1;
-    std::thread::id threadId_{};
-    std::unique_ptr<Poller> poller_;
+    private:
+        void processPendingFunctors();
+        void onWakeUp() const;
 
-    std::unique_ptr<Channel> wakeupChannel_;
-    std::vector<Channel*> activeChannels_;
+    private:
+        int evtFD_ = -1;
+        std::thread::id threadId_{};
+        std::unique_ptr<Poller> poller_;
 
-    std::atomic_bool isQuit_ = false;
+        std::unique_ptr<Channel> wakeupChannel_;
+        std::vector<Channel*> activeChannels_;
 
-    std::atomic_bool callingPendingFunctors_ = false;
-    ConcurrentQueue<Functor> pendingFunctors_;
-};
+        std::atomic_bool isQuit_ = false;
+
+        std::atomic_bool callingPendingFunctors_ = false;
+        ConcurrentQueue<EventLoop::Functor> pendingFunctors_;
+    };
+} // namespace Dream::detail

@@ -7,6 +7,8 @@
 #include <common/define.h>
 #include <tcp/channel.h>
 
+using namespace Dream::detail;
+
 namespace {
     constexpr uint32_t MAX_EVENT = 512;
 

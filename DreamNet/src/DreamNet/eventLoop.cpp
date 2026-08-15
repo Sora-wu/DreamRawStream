@@ -9,11 +9,13 @@
 
 using namespace Dream;
 
-EventLoop::EventLoop() : impl_(std::make_unique<Impl>()) {
+EventLoop::EventLoop() : impl_(std::make_unique<detail::EventLoopImpl>()) {
     if (!impl_) {
         LOG_FATAL("EventLoop::EventLoop(): impl_ is null");
     }
 }
+
+EventLoop::~EventLoop() = default;
 
 void EventLoop::loop() const {
     impl_->loop();

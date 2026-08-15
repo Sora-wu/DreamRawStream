@@ -5,42 +5,36 @@
 
 #pragma once
 
-#include <DreamNet/buffer.hpp>
 #include <DreamNet/callbacks.h>
-#include <DreamNet/address.h>
-#include <common/socket.h>
 
-class Channel;
+#include <memory>
 
 namespace Dream {
     class EventLoop;
+    class Address;
+
+    namespace detail {
+        class TcpConnectionImpl;
+    }
 
     class TcpConnection {
     public:
-        TcpConnection(EventLoop* eventLoop, int fd, const Address& localAddress, const Address& remoteAddress);
+        TcpConnection(EventLoop* loop, int fd, const Address& localAddress, const Address& remoteAddress);
+        ~TcpConnection();
+        TcpConnection(const TcpConnection&) = delete;
+        TcpConnection& operator=(const TcpConnection&) = delete;
 
-        void setConnectionCallback(ConnectionCallback connectionCallback);
-        void setMessageCallback(MessageCallback messageCallback);
-        void setCloseCallback(CloseCallback closeCallback);
+        void connectEstablished() const;
+        void connectDestroyed() const;
+        [[nodiscard]] bool isConnected() const;
+        void send(Buffer& buffer) const;
+        void shutdown() const;
+
+        void setConnectionCallback(ConnectionCallback cb) const;
+        void setMessageCallback(MessageCallback cb) const;
+        void setCloseCallback(CloseCallback cb) const;
 
     private:
-        enum class ConnectionState {
-            Disconnected,
-            Connecting,
-            Connected,
-            Disconnecting,
-        } state_ = ConnectionState::Disconnected;
-
-        ConnectionCallback connectionCallback_;
-        MessageCallback messageCallback_;
-        CloseCallback closeCallback_;
-
-        EventLoop* loop_;
-        Socket socket_;
-        const Address& localAddress_;
-        const Address& remoteAddress_;
-        Channel* channel_;
-        Buffer inBuffer_;
-        Buffer outBuffer_;
+        std::unique_ptr<detail::TcpConnectionImpl> impl_;
     };
 }

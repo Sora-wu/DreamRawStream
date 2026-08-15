@@ -44,10 +44,23 @@ namespace Dream {
          * 若可写空间不足，会先尝试回收已读空间（compact），若仍不足则自动扩容。
          */
         void write(std::span<const char> data) {
-            if (data.empty()) return;
+            if (data.empty()) {
+                return;
+            }
             ensureWritableSpace(data.size());
             std::memcpy(buf_.data() + writeIndex_, data.data(), data.size());
             writeIndex_ += data.size();
+        }
+
+        /**
+         * 附加操作：将另一个buffer附加上去
+         * 若可写空间不足，会先尝试回收已读空间（compact），若仍不足则自动扩容。
+         */
+        void append(const Buffer& buffer) {
+            const size_t n = buffer.readableSize();
+            ensureWritableSpace(n);
+            std::memcpy(buf_.data() + writeIndex_, buffer.buf_.data() + buffer.readIndex_, n);
+            writeIndex_ += n;
         }
 
         /**
@@ -123,10 +136,7 @@ namespace Dream {
             }
 
             // 扩容：至少翻倍，且不少于 writeIndex_ + need
-            size_t newSize = std::max(writeIndex_ + need, buf_.size() * 2);
-            if (newSize < writeIndex_ + need) {
-                newSize = writeIndex_ + need; // 防止溢出
-            }
+            const size_t newSize = std::max(writeIndex_ + need, buf_.size() * 2);
             buf_.resize(newSize);
         }
 
