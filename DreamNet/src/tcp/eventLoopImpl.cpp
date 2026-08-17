@@ -21,7 +21,7 @@ using namespace Dream::detail;
 EventLoopImpl::EventLoopImpl(Dream::EventLoop* loop) :
     evtFD_(eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC)),
     threadId_(std::this_thread::get_id()) {
-    if (evtFD_) {
+    if (evtFD_ < 0) {
         LOG_FATAL("eventfd error: {}", strerror(errno));
     }
 

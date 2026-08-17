@@ -12,10 +12,17 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "Windows")
     set(PLATFORM_NAME "win")
     add_compile_definitions(PLATFORM_WINDOWS)
 endif()
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR}/third/build/${PLATFORM_NAME})
 
 add_compile_definitions($<$<CONFIG:Debug>:CONFIG_DEBUG>)
-set(BUILD_SHARED_LIBS ON)
 
-list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR}/code/third/build/${PLATFORM_NAME})
+option(DREAM_FROM_SOURCE "Build DreamNet from source for debugging" ON)
 
-add_subdirectory(DreamNet)
+if(DREAM_FROM_SOURCE)
+    add_subdirectory(DreamNet)
+else()
+    find_package(Dream COMPONENTS Net REQUIRED)
+endif()
+
+add_executable(echoServer echoServer/echoServer.cpp)
+target_link_libraries(echoServer PRIVATE Dream::Net)

@@ -20,6 +20,7 @@ namespace Dream {
     class TcpServer {
     public:
         TcpServer(EventLoop* loop, const Address& address);
+        ~TcpServer();
         TcpServer(const TcpServer&) = delete;
         TcpServer& operator=(const TcpServer&) = delete;
 
@@ -30,6 +31,6 @@ namespace Dream {
         void setMessageCallback(MessageCallback cb) const;
 
     private:
-        std::unique_ptr<detail::TcpServerImpl> impl_;
+        detail::TcpServerImpl* impl_ = nullptr;
     };
 }

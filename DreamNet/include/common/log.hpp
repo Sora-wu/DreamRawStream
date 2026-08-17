@@ -34,10 +34,9 @@ public:
 
         // ---- 时间戳（精确到毫秒） ----
         auto now = std::chrono::system_clock::now();
-        auto zt = std::chrono::zoned_time{std::chrono::current_zone(), now};
-        auto secs = std::chrono::floor<std::chrono::seconds>(now);
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - secs).count();
-        std::string timestamp = std::format("{:%Y-%m-%d %H:%M:%S}.{:03d}", zt, ms);
+        auto now_ms = std::chrono::floor<std::chrono::milliseconds>(now);
+        auto zt = std::chrono::zoned_time{std::chrono::current_zone(), now_ms};
+        std::string timestamp = std::format("{:%Y-%m-%d %H:%M:%S}", zt);
 
         // ---- 级别字符串与颜色 ----
         std::string levelStr;

@@ -26,6 +26,9 @@ namespace Dream::detail {
                             const Address& localAddress, const Address& remoteAddress);
         ~TcpConnectionImpl() = default;
 
+        [[nodiscard]] Address getLocalAddress() const;
+        [[nodiscard]] Address getRemoteAddress() const;
+
         [[nodiscard]] std::string getName() const;
         void connectEstablished();
         void connectDestroyed();

@@ -27,6 +27,14 @@ TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoop* loop, const
     socket_.setFd(fd);
 }
 
+Dream::Address TcpConnectionImpl::getLocalAddress() const {
+    return localAddress_;
+}
+
+Dream::Address TcpConnectionImpl::getRemoteAddress() const {
+    return remoteAddress_;
+}
+
 std::string TcpConnectionImpl::getName() const {
     return name_;
 }

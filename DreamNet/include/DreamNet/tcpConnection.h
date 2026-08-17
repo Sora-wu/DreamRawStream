@@ -25,6 +25,8 @@ namespace Dream {
         TcpConnection& operator=(const TcpConnection&) = delete;
 
         [[nodiscard]] EventLoop* getLoop() const;
+        [[nodiscard]] Address getLocalAddress() const;
+        [[nodiscard]] Address getRemoteAddress() const;
 
         [[nodiscard]] std::string getName() const;
         void connectEstablished() const;

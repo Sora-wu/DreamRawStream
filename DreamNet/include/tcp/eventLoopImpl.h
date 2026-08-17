@@ -23,7 +23,7 @@ namespace Dream::detail {
 
         // 从公共 EventLoop 获取内部 Impl（仅供 detail 内部代码使用）
         [[nodiscard]] static EventLoopImpl* from(const Dream::EventLoop* loop) {
-            return loop->impl_.get();
+            return loop->impl_;
         }
 
         void loop();

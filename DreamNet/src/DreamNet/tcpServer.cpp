@@ -9,13 +9,17 @@
 #include <tcp/eventLoopImpl.h>
 #include <tcp/channel.h>
 
-#include <cassert>
-
 using namespace Dream;
 
 TcpServer::TcpServer(EventLoop* loop, const Address& address) :
-    impl_(std::make_unique<detail::TcpServerImpl>(loop, address)) {
-    assert(impl_);
+    impl_(new detail::TcpServerImpl(loop, address)) {
+}
+
+TcpServer::~TcpServer() {
+    if (impl_) {
+        delete impl_;
+        impl_ = nullptr;
+    }
 }
 
 void TcpServer::setThreadCount(uint32_t threadCount) const {

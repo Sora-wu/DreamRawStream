@@ -11,7 +11,14 @@
 
 using namespace Dream;
 
-EventLoop::EventLoop() : impl_(std::make_unique<detail::EventLoopImpl>(this)) {}
+EventLoop::EventLoop() : impl_(new detail::EventLoopImpl(this)) {}
+
+EventLoop::~EventLoop() {
+    if (impl_) {
+        delete impl_;
+        impl_ = nullptr;
+    }
+}
 
 void EventLoop::loop() const {
     impl_->loop();

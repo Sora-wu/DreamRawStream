@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <memory>
 #include <functional>
 #include <thread>
 
@@ -19,7 +18,7 @@ namespace Dream {
         using Functor = std::function<void()>;
 
         EventLoop();
-        ~EventLoop() = default;
+        ~EventLoop();
         EventLoop(const EventLoop&) = delete;
         EventLoop& operator=(const EventLoop&) = delete;
 
@@ -35,6 +34,6 @@ namespace Dream {
 
     private:
         friend class detail::EventLoopImpl;
-        std::unique_ptr<detail::EventLoopImpl> impl_;
+        detail::EventLoopImpl* impl_ = nullptr;
     };
 }

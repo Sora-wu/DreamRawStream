@@ -19,6 +19,14 @@ EventLoop* TcpConnection::getLoop() const {
     return loop_;
 }
 
+Address TcpConnection::getLocalAddress() const {
+    return impl_->getLocalAddress();
+}
+
+Address TcpConnection::getRemoteAddress() const {
+    return impl_->getRemoteAddress();
+}
+
 std::string TcpConnection::getName() const {
     return impl_->getName();
 }
