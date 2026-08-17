@@ -5,17 +5,13 @@
 
 #include <DreamNet/eventLoop.h>
 #include <tcp/eventLoopImpl.h>
+#include <tcp/channel.h>
+#include <tcp/poller.h>
 #include <common/define.h>
 
 using namespace Dream;
 
-EventLoop::EventLoop() : impl_(std::make_unique<detail::EventLoopImpl>()) {
-    if (!impl_) {
-        LOG_FATAL("EventLoop::EventLoop(): impl_ is null");
-    }
-}
-
-EventLoop::~EventLoop() = default;
+EventLoop::EventLoop() : impl_(std::make_unique<detail::EventLoopImpl>(this)) {}
 
 void EventLoop::loop() const {
     impl_->loop();

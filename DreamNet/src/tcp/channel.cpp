@@ -6,9 +6,9 @@
 #include <tcp/channel.h>
 #include <tcp/eventLoopImpl.h>
 
-#include <utility>
-
 using namespace Dream::detail;
+
+Channel::Channel(EventLoop* loop, int fd) : loop_(loop), loopImpl_(EventLoopImpl::from(loop)), fd_(fd) {}
 
 int Channel::getFd() const {
     return fd_;
@@ -64,7 +64,7 @@ uint32_t Channel::getListenEvent() const {
 }
 
 void Channel::update() {
-    loop_->updateChannel(this);
+    loopImpl_->updateChannel(this);
 }
 
 void Channel::setActualEvent(uint32_t event) {

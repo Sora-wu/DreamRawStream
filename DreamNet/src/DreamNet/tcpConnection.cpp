@@ -9,11 +9,19 @@
 
 using namespace Dream;
 
-TcpConnection::TcpConnection(EventLoop* eventLoop, int fd, const Address& localAddress, const Address& remoteAddress) :
-    impl_(std::make_unique<detail::TcpConnectionImpl>(this, detail::EventLoopImpl::from(eventLoop), fd, localAddress, remoteAddress)) {
-}
+TcpConnection::TcpConnection(EventLoop* loop, const std::string& name, int fd, const Address& localAddress, const Address& remoteAddress) :
+    impl_(std::make_unique<detail::TcpConnectionImpl>(this, loop, name, fd, localAddress, remoteAddress)),
+    loop_(loop) {}
 
 TcpConnection::~TcpConnection() = default;
+
+EventLoop* TcpConnection::getLoop() const {
+    return loop_;
+}
+
+std::string TcpConnection::getName() const {
+    return impl_->getName();
+}
 
 void TcpConnection::connectEstablished() const {
     impl_->connectEstablished();

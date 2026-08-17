@@ -19,11 +19,10 @@ namespace Dream::detail {
 
     class EventLoopImpl {
     public:
-        EventLoopImpl();
-        ~EventLoopImpl();
+        EventLoopImpl(Dream::EventLoop* loop);
 
         // 从公共 EventLoop 获取内部 Impl（仅供 detail 内部代码使用）
-        [[nodiscard]] static EventLoopImpl* from(const EventLoop* loop) {
+        [[nodiscard]] static EventLoopImpl* from(const Dream::EventLoop* loop) {
             return loop->impl_.get();
         }
 
@@ -31,8 +30,8 @@ namespace Dream::detail {
         void quit();
 
         void wakeup() const;
-        void runInLoop(EventLoop::Functor func);
-        void queueInLoop(EventLoop::Functor func);
+        void runInLoop(Dream::EventLoop::Functor func);
+        void queueInLoop(Dream::EventLoop::Functor func);
 
         [[nodiscard]] std::thread::id getThreadId() const;
         [[nodiscard]] bool isInLoopThread() const;
@@ -40,6 +39,7 @@ namespace Dream::detail {
         ////////////////////Impl特有////////////////////////
         void updateChannel(Channel* channel) const;
         void removeChannel(Channel* channel) const;
+        [[nodiscard]] uint32_t getLoad() const;
 
     private:
         void processPendingFunctors();
@@ -56,6 +56,6 @@ namespace Dream::detail {
         std::atomic_bool isQuit_ = false;
 
         std::atomic_bool callingPendingFunctors_ = false;
-        ConcurrentQueue<EventLoop::Functor> pendingFunctors_;
+        ConcurrentQueue<Dream::EventLoop::Functor> pendingFunctors_;
     };
-} // namespace Dream::detail
+}

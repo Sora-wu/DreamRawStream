@@ -19,7 +19,7 @@ namespace Dream {
         using Functor = std::function<void()>;
 
         EventLoop();
-        ~EventLoop();
+        ~EventLoop() = default;
         EventLoop(const EventLoop&) = delete;
         EventLoop& operator=(const EventLoop&) = delete;
 

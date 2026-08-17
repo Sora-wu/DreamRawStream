@@ -19,11 +19,14 @@ namespace Dream {
 
     class TcpConnection {
     public:
-        TcpConnection(EventLoop* loop, int fd, const Address& localAddress, const Address& remoteAddress);
+        TcpConnection(EventLoop* loop, const std::string& name, int fd, const Address& localAddress, const Address& remoteAddress);
         ~TcpConnection();
         TcpConnection(const TcpConnection&) = delete;
         TcpConnection& operator=(const TcpConnection&) = delete;
 
+        [[nodiscard]] EventLoop* getLoop() const;
+
+        [[nodiscard]] std::string getName() const;
         void connectEstablished() const;
         void connectDestroyed() const;
         [[nodiscard]] bool isConnected() const;
@@ -36,5 +39,6 @@ namespace Dream {
 
     private:
         std::unique_ptr<detail::TcpConnectionImpl> impl_;
+        EventLoop* loop_ = nullptr;
     };
 }

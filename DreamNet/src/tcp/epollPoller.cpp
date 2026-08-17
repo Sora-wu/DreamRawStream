@@ -70,6 +70,10 @@ void EpollPoller::removeChannel(Channel* channel) {
     channel->setStatus(ChannelStatus::OUT_LOOP);
 }
 
+uint32_t EpollPoller::getLoad() {
+    return load_;
+}
+
 void EpollPoller::fillActiveChannel(int nfds, std::vector<Channel*>& activeChannels) const {
     for (int i = 0; i < nfds; ++i) {
         const epoll_event& ev = events_[i];
@@ -79,7 +83,7 @@ void EpollPoller::fillActiveChannel(int nfds, std::vector<Channel*>& activeChann
     }
 }
 
-void EpollPoller::update(int op, Channel* channel) const {
+void EpollPoller::update(int op, Channel* channel) {
     const uint32_t event = channel->getListenEvent();
     const int fd = channel->getFd();
     epoll_event ev{};
@@ -94,5 +98,14 @@ void EpollPoller::update(int op, Channel* channel) const {
         else {
             LOG_FATAL("epoll ctl(add/mod) error: {}", strerror(errno));
         }
+
+        return;
+    }
+
+    if (op == EPOLL_CTL_ADD) {
+        ++load_;
+    }
+    if (op == EPOLL_CTL_DEL) {
+        --load_;
     }
 }

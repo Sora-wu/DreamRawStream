@@ -15,9 +15,10 @@ namespace {
     constexpr int BUFFER_SIZE = 1024 * 64;
 }
 
-TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, int fd,
+TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoop* loop, const std::string& name, int fd,
                                      const Address& localAddress, const Address& remoteAddress) :
     conn_(conn),
+    name_(name),
     loop_(loop),
     localAddress_(localAddress),
     remoteAddress_(remoteAddress),
@@ -26,10 +27,12 @@ TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, i
     socket_.setFd(fd);
 }
 
-TcpConnectionImpl::~TcpConnectionImpl() = default;
+std::string TcpConnectionImpl::getName() const {
+    return name_;
+}
 
 void TcpConnectionImpl::connectEstablished() {
-    setState(ConnectionState::CONNECTED);
+    state_ = ConnectionState::CONNECTED;
 
     channel_->setOnReadEvent([this] { handleRead(); });
     channel_->setOnWriteEvent([this] { handleWrite(); });
@@ -43,9 +46,10 @@ void TcpConnectionImpl::connectEstablished() {
 }
 
 void TcpConnectionImpl::connectDestroyed() {
-    if (state_ == ConnectionState::DISCONNECTED) {}
-    setState(ConnectionState::DISCONNECTED);
-    channel_->disableReading();
+    if (state_ == ConnectionState::CONNECTED) {
+        state_ = ConnectionState::DISCONNECTED;
+        channel_->disableReading();
+    }
 }
 
 bool TcpConnectionImpl::isConnected() const {
@@ -58,7 +62,7 @@ void TcpConnectionImpl::send(Buffer& buffer) {
 
 void TcpConnectionImpl::shutdown() {
     if (state_ == ConnectionState::CONNECTED) {
-        setState(ConnectionState::DISCONNECTING);
+        state_ = ConnectionState::DISCONNECTED;
         loop_->runInLoop([this] {
             if (!channel_->isWriting()) {
                 socket_.shutdown();
@@ -77,10 +81,6 @@ void TcpConnectionImpl::setMessageCallback(MessageCallback cb) {
 
 void TcpConnectionImpl::setCloseCallback(CloseCallback cb) {
     closeCallback_ = std::move(cb);
-}
-
-void TcpConnectionImpl::setState(ConnectionState state) {
-    state_ = state;
 }
 
 void TcpConnectionImpl::sendInLoop(Buffer& buffer) {
@@ -148,7 +148,7 @@ void TcpConnectionImpl::handleWrite() {
 
 void TcpConnectionImpl::handleClose() {
     LOG_ERROR("client closed connection");
-    setState(ConnectionState::DISCONNECTED);
+    state_ = ConnectionState::DISCONNECTED;
 
     if (closeCallback_) {
         closeCallback_(conn_);

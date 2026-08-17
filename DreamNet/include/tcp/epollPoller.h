@@ -19,13 +19,15 @@ namespace Dream::detail {
 
         void updateChannel(Channel* channel) override;
         void removeChannel(Channel* channel) override;
+        [[nodiscard]] uint32_t getLoad() override;
 
     private:
         void fillActiveChannel(int nfds, std::vector<Channel*>& activeChannels) const;
-        void update(int op, Channel* channel) const;
+        void update(int op, Channel* channel);
 
     private:
         int epFD_ = -1;
         std::vector<epoll_event> events_;
+        uint32_t load_ = 0;             // 当前的epoll跑了多少个fd（负载）
     };
 } // namespace Dream::detail

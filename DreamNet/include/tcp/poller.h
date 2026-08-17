@@ -6,6 +6,7 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
 
 namespace Dream::detail {
     class Channel;
@@ -19,5 +20,6 @@ namespace Dream::detail {
 
         virtual void updateChannel(Channel* channel) = 0;
         virtual void removeChannel(Channel* channel) = 0;
+        [[nodiscard]] virtual uint32_t getLoad() = 0;
     };
 } // namespace Dream::detail

@@ -8,62 +8,67 @@
 #include <cstdint>
 #include <functional>
 
-namespace Dream::detail {
-    class EventLoopImpl;
+namespace Dream {
+    class EventLoop;
 
-    enum class ChannelStatus {
-        OUT_LOOP,
-        IN_LOOP,
-    };
+    namespace detail {
+        class EventLoopImpl;
 
-    class Channel {
-    public:
-        static constexpr uint32_t EVENT_NONE = 0x0;
-        static constexpr uint32_t EVENT_READ = 0x1;
-        static constexpr uint32_t EVENT_PRI = 0x2;
-        static constexpr uint32_t EVENT_WRITE = 0x4;
-        static constexpr uint32_t EVENT_ERROR = 0x8;
-        static constexpr uint32_t EVENT_HUP = 0x10;
-        using Functor = std::function<void()>;
+        enum class ChannelStatus {
+            OUT_LOOP,
+            IN_LOOP,
+        };
 
-        Channel(EventLoopImpl* loop, int fd) : loop_(loop), fd_(fd) {}
+        class Channel {
+        public:
+            static constexpr uint32_t EVENT_NONE = 0x0;
+            static constexpr uint32_t EVENT_READ = 0x1;
+            static constexpr uint32_t EVENT_PRI = 0x2;
+            static constexpr uint32_t EVENT_WRITE = 0x4;
+            static constexpr uint32_t EVENT_ERROR = 0x8;
+            static constexpr uint32_t EVENT_HUP = 0x10;
+            using Functor = std::function<void()>;
 
-        [[nodiscard]] int getFd() const;
-        [[nodiscard]] ChannelStatus getStatus() const;
-        void setStatus(ChannelStatus status);
+            Channel(EventLoop* loop, int fd);
 
-        [[nodiscard]] bool isNoneEvent() const;
-        [[nodiscard]] bool isReading() const;
-        [[nodiscard]] bool isWriting() const;
+            [[nodiscard]] int getFd() const;
+            [[nodiscard]] ChannelStatus getStatus() const;
+            void setStatus(ChannelStatus status);
 
-        void enableReading();
-        void enableWriting();
-        void disableReading();
-        void disableWriting();
-        void disableAll();
-        [[nodiscard]] uint32_t getListenEvent() const;
-        void update();
+            [[nodiscard]] bool isNoneEvent() const;
+            [[nodiscard]] bool isReading() const;
+            [[nodiscard]] bool isWriting() const;
 
-        void setActualEvent(uint32_t event);
+            void enableReading();
+            void enableWriting();
+            void disableReading();
+            void disableWriting();
+            void disableAll();
+            [[nodiscard]] uint32_t getListenEvent() const;
+            void update();
 
-        void setOnReadEvent(Functor func);
-        void setOnWriteEvent(Functor func);
-        void setOnCloseEvent(Functor func);
-        void setOnErrorEvent(Functor func);
+            void setActualEvent(uint32_t event);
 
-        void handleEvent() const;
+            void setOnReadEvent(Functor func);
+            void setOnWriteEvent(Functor func);
+            void setOnCloseEvent(Functor func);
+            void setOnErrorEvent(Functor func);
 
-    private:
-        EventLoopImpl* loop_ = nullptr;
-        int fd_ = -1;
+            void handleEvent() const;
 
-        uint32_t listenEvent_{}; // channel自身关心的事件
-        uint32_t actualEvent_{}; // 实际返回的事件
-        ChannelStatus status_ = ChannelStatus::OUT_LOOP;
+        private:
+            EventLoop* loop_ = nullptr;
+            EventLoopImpl* loopImpl_ = nullptr;
+            int fd_ = -1;
 
-        Functor onReadEvent_;
-        Functor onWriteEvent_;
-        Functor onCloseEvent_;
-        Functor onErrorEvent_;
-    };
-} // namespace Dream::detail
+            uint32_t listenEvent_{}; // channel自身关心的事件
+            uint32_t actualEvent_{}; // 实际返回的事件
+            ChannelStatus status_ = ChannelStatus::OUT_LOOP;
+
+            Functor onReadEvent_;
+            Functor onWriteEvent_;
+            Functor onCloseEvent_;
+            Functor onErrorEvent_;
+        };
+    }
+}

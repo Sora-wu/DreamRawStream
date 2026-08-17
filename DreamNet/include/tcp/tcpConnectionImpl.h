@@ -18,15 +18,15 @@ namespace Dream::detail {
     class TcpConnectionImpl {
         enum class ConnectionState {
             DISCONNECTED,
-            CONNECTING,
             CONNECTED,
-            DISCONNECTING,
         };
 
     public:
-        TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, int fd, const Address& localAddress, const Address& remoteAddress);
-        ~TcpConnectionImpl();
+        TcpConnectionImpl(TcpConnection* conn, EventLoop* loop, const std::string& name, int fd,
+                            const Address& localAddress, const Address& remoteAddress);
+        ~TcpConnectionImpl() = default;
 
+        [[nodiscard]] std::string getName() const;
         void connectEstablished();
         void connectDestroyed();
         [[nodiscard]] bool isConnected() const;
@@ -38,7 +38,6 @@ namespace Dream::detail {
         void setCloseCallback(CloseCallback cb);
 
     private:
-        void setState(ConnectionState state);
         void sendInLoop(Buffer& buffer);
 
         void handleRead();
@@ -49,10 +48,11 @@ namespace Dream::detail {
     private:
         // 非拥有
         TcpConnection* conn_ = nullptr;
+        const std::string name_{};
 
         ConnectionState state_ = ConnectionState::DISCONNECTED;
 
-        EventLoopImpl* loop_ = nullptr;
+        EventLoop* loop_ = nullptr;
         Socket socket_;
         Address localAddress_;
         Address remoteAddress_;

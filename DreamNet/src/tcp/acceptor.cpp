@@ -5,17 +5,17 @@
 
 #include <tcp/acceptor.h>
 #include <tcp/channel.h>
+#include <tcp/eventLoopImpl.h>
 #include <common/define.h>
 
 #include <unistd.h>
-#include <utility>
 
 using namespace Dream::detail;
 
-Acceptor::Acceptor(EventLoopImpl* loop, const Dream::Address& address) :
+Acceptor::Acceptor(EventLoop* loop, const Address& address) :
     loop_(loop),
     socket_(SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK) {
-    acceptChannel_ = std::make_unique<Channel>(loop_, socket_.getFd());
+    acceptChannel_ = std::make_unique<Channel>(loop, socket_.getFd());
     if (!acceptChannel_) {
         LOG_FATAL("accept channel is null");
     }
@@ -33,7 +33,7 @@ void Acceptor::setNewConnectionFunc(NewConnectionFunc func) {
     newConnectionFunc_ = std::move(func);
 }
 
-void Acceptor::initSocket(const Dream::Address& address) {
+void Acceptor::initSocket(const Address& address) {
     socket_.setTcpNoDelay(true);
     socket_.setReUseAddr(true);
     socket_.setReUsePort(true);
@@ -42,7 +42,7 @@ void Acceptor::initSocket(const Dream::Address& address) {
 }
 
 void Acceptor::onAccept() {
-    Dream::Address addr{};
+    Address addr{};
     int connfd = socket_.accept(addr);
     if (connfd < 0) {
         return;
