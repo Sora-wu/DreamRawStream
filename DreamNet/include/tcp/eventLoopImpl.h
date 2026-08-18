@@ -19,7 +19,7 @@ namespace Dream::detail {
 
     class EventLoopImpl {
     public:
-        EventLoopImpl(Dream::EventLoop* loop);
+        EventLoopImpl();
 
         // 从公共 EventLoop 获取内部 Impl（仅供 detail 内部代码使用）
         [[nodiscard]] static EventLoopImpl* from(const Dream::EventLoop* loop) {

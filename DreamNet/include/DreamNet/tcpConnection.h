@@ -33,6 +33,7 @@ namespace Dream {
         void connectDestroyed() const;
         [[nodiscard]] bool isConnected() const;
         void send(Buffer& buffer) const;
+        void send(const std::span<char>& buffer) const;
         void shutdown() const;
 
         void setConnectionCallback(ConnectionCallback cb) const;

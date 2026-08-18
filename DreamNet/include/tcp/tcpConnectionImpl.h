@@ -22,7 +22,7 @@ namespace Dream::detail {
         };
 
     public:
-        TcpConnectionImpl(TcpConnection* conn, EventLoop* loop, const std::string& name, int fd,
+        TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, const std::string& name, int fd,
                             const Address& localAddress, const Address& remoteAddress);
         ~TcpConnectionImpl() = default;
 
@@ -34,6 +34,7 @@ namespace Dream::detail {
         void connectDestroyed();
         [[nodiscard]] bool isConnected() const;
         void send(Buffer& buffer);
+        void send(const std::span<char>& buffer);
         void shutdown();
 
         void setConnectionCallback(ConnectionCallback cb);
@@ -55,7 +56,7 @@ namespace Dream::detail {
 
         ConnectionState state_ = ConnectionState::DISCONNECTED;
 
-        EventLoop* loop_ = nullptr;
+        EventLoopImpl* loop_ = nullptr;
         Socket socket_;
         Address localAddress_;
         Address remoteAddress_;

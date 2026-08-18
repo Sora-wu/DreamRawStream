@@ -18,7 +18,7 @@ namespace {
 
 using namespace Dream::detail;
 
-EventLoopImpl::EventLoopImpl(Dream::EventLoop* loop) :
+EventLoopImpl::EventLoopImpl() :
     evtFD_(eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC)),
     threadId_(std::this_thread::get_id()) {
     if (evtFD_ < 0) {
@@ -26,7 +26,7 @@ EventLoopImpl::EventLoopImpl(Dream::EventLoop* loop) :
     }
 
     poller_.reset(Poller::getDefaultPoller());
-    wakeupChannel_ = std::make_unique<Channel>(loop, evtFD_);
+    wakeupChannel_ = std::make_unique<Channel>(this, evtFD_);
     if (!wakeupChannel_) {
         LOG_FATAL("wakeup channel is null");
     }

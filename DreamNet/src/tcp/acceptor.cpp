@@ -12,7 +12,7 @@
 
 using namespace Dream::detail;
 
-Acceptor::Acceptor(EventLoop* loop, const Address& address) :
+Acceptor::Acceptor(EventLoopImpl* loop, const Address& address) :
     loop_(loop),
     socket_(SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK) {
     acceptChannel_ = std::make_unique<Channel>(loop, socket_.getFd());

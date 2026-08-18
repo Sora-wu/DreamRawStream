@@ -19,7 +19,7 @@ using namespace Dream;
 
 detail::TcpServerImpl::TcpServerImpl(EventLoop* loop, const Address& addr) :
     loop_(loop),
-    acceptor_(std::make_unique<Acceptor>(loop, addr)),
+    acceptor_(std::make_unique<Acceptor>(EventLoopImpl::from(loop), addr)),
     threadPool_(std::make_unique<ThreadPool>(loop)) {
     acceptor_->setNewConnectionFunc([this](int fd, const Address& addr) {
         onNewConnection(fd, addr);
@@ -88,7 +88,8 @@ void detail::TcpServerImpl::onConnectionClose(TcpConnection* connection) {
 
     loop_->runInLoop([this, connection] {
         std::string name = connection->getName();
-        LOG_INFO("connection closed, connection name: {}", name);
+        const Address& addr = connection->getRemoteAddress();
+        LOG_INFO("connection closed, connection name: {}, {}:{}", name, addr.getIP(), addr.getPort());
         connections_.erase(name);
     });
 }

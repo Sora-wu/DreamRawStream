@@ -8,7 +8,7 @@
 
 using namespace Dream::detail;
 
-Channel::Channel(EventLoop* loop, int fd) : loop_(loop), loopImpl_(EventLoopImpl::from(loop)), fd_(fd) {}
+Channel::Channel(EventLoopImpl* loop, int fd) : loopImpl_(loop), fd_(fd) {}
 
 int Channel::getFd() const {
     return fd_;

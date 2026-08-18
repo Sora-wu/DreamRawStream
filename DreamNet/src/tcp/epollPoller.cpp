@@ -45,7 +45,7 @@ void EpollPoller::poll(std::vector<Channel*>& activeChannels, int timeout) {
         return;
     }
 
-    if (errno != EINTR) {
+    if (nfds < 0 && errno != EINTR) {
         LOG_ERROR("epoll_wait error: {}", strerror(saveErrno));
     }
 }
@@ -89,7 +89,6 @@ void EpollPoller::update(int op, Channel* channel) {
     epoll_event ev{};
     ev.events = event;
     ev.data.ptr = channel;
-    ev.data.fd = fd;
 
     if (epoll_ctl(epFD_, op, fd, &ev) < 0) {
         if (op == EPOLL_CTL_DEL) {

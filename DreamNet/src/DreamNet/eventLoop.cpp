@@ -11,7 +11,7 @@
 
 using namespace Dream;
 
-EventLoop::EventLoop() : impl_(new detail::EventLoopImpl(this)) {}
+EventLoop::EventLoop() : impl_(new detail::EventLoopImpl) {}
 
 EventLoop::~EventLoop() {
     if (impl_) {

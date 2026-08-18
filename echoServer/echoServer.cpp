@@ -29,6 +29,8 @@ private:
     }
 
     void onMessage(Dream::TcpConnection* conn, Dream::Buffer& buffer) {
+        std::string_view msg = buffer.view();
+        std::print("recv: {}", msg);
         conn->send(buffer);
     }
 

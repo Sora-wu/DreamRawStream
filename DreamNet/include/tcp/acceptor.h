@@ -11,30 +11,27 @@
 #include <functional>
 #include <memory>
 
-namespace Dream {
-    class EventLoop;
+namespace Dream::detail {
+    class EventLoopImpl;
+    class Channel;
 
-    namespace detail {
-        class Channel;
+    class Acceptor {
+    public:
+        using NewConnectionFunc = std::function<void(int fd, const Address& addr)>;
+        Acceptor(EventLoopImpl* loop, const Address& address);
 
-        class Acceptor {
-        public:
-            using NewConnectionFunc = std::function<void(int fd, const Address& addr)>;
-            Acceptor(EventLoop* loop, const Address& address);
+        void listen();
+        void setNewConnectionFunc(NewConnectionFunc func);
 
-            void listen();
-            void setNewConnectionFunc(NewConnectionFunc func);
+    private:
+        void initSocket(const Address& address);
+        void onAccept();
 
-        private:
-            void initSocket(const Address& address);
-            void onAccept();
+    private:
+        EventLoopImpl* loop_ = nullptr;
+        Socket socket_;
 
-        private:
-            EventLoop* loop_ = nullptr;
-            Socket socket_;
-
-            std::unique_ptr<Channel> acceptChannel_;
-            NewConnectionFunc newConnectionFunc_{};
-        };
-    }
+        std::unique_ptr<Channel> acceptChannel_;
+        NewConnectionFunc newConnectionFunc_{};
+    };
 }

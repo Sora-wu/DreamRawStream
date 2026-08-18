@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstring>
 #include <span>
+#include <string_view>
 #include <vector>
 
 namespace Dream {
@@ -98,6 +99,11 @@ namespace Dream {
         void clear() {
             readIndex_ = 0;
             writeIndex_ = 0;
+        }
+
+        [[nodiscard]] std::string_view view() const {
+            std::span<const char> data = peek();
+            return std::string_view{ data.data(), data.size() };
         }
 
         /**

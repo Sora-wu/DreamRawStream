@@ -15,7 +15,7 @@ namespace {
     constexpr int BUFFER_SIZE = 1024 * 64;
 }
 
-TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoop* loop, const std::string& name, int fd,
+TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, const std::string& name, int fd,
                                      const Address& localAddress, const Address& remoteAddress) :
     conn_(conn),
     name_(name),
@@ -66,6 +66,13 @@ bool TcpConnectionImpl::isConnected() const {
 
 void TcpConnectionImpl::send(Buffer& buffer) {
     loop_->runInLoop([&] { sendInLoop(buffer); });
+}
+
+void TcpConnectionImpl::send(const std::span<char>& data) {
+    Buffer buffer;
+    buffer.write(data);
+
+    sendInLoop(buffer);
 }
 
 void TcpConnectionImpl::shutdown() {
@@ -155,7 +162,7 @@ void TcpConnectionImpl::handleWrite() {
 }
 
 void TcpConnectionImpl::handleClose() {
-    LOG_ERROR("client closed connection");
+    LOG_INFO("client closed connection");
     state_ = ConnectionState::DISCONNECTED;
 
     if (closeCallback_) {
