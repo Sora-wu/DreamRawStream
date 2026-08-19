@@ -64,21 +64,33 @@ bool TcpConnectionImpl::isConnected() const {
     return state_ == ConnectionState::CONNECTED;
 }
 
-void TcpConnectionImpl::send(Buffer& buffer) {
-    loop_->runInLoop([&] { sendInLoop(buffer); });
+void TcpConnectionImpl::send(Buffer& buffer, std::shared_ptr<const TcpConnection> self) {
+    // 拷贝数据并消费源 buffer，避免按引用捕获局部变量造成悬垂引用
+    Buffer buf;
+    buf.append(buffer);
+    buffer.consume(buffer.readableSize());
+
+    loop_->runInLoop([this, self = std::move(self), buf = std::move(buf)]() mutable {
+        (void)self; // 仅持有owner引用，保证this在functor执行前不被析构，下同
+        sendInLoop(buf);
+    });
 }
 
-void TcpConnectionImpl::send(const std::span<char>& data) {
-    Buffer buffer;
-    buffer.write(data);
+void TcpConnectionImpl::send(const std::span<char>& data, std::shared_ptr<const TcpConnection> self) {
+    Buffer buf;
+    buf.write(data);
 
-    sendInLoop(buffer);
+    loop_->runInLoop([this, self = std::move(self), buf = std::move(buf)]() mutable {
+        (void)self;
+        sendInLoop(buf);
+    });
 }
 
-void TcpConnectionImpl::shutdown() {
+void TcpConnectionImpl::shutdown(std::shared_ptr<const TcpConnection> self) {
     if (state_ == ConnectionState::CONNECTED) {
         state_ = ConnectionState::DISCONNECTED;
-        loop_->runInLoop([this] {
+        loop_->runInLoop([this, self = std::move(self)] {
+            (void)self;
             if (!channel_->isWriting()) {
                 socket_.shutdown();
             }
@@ -99,25 +111,30 @@ void TcpConnectionImpl::setCloseCallback(CloseCallback cb) {
 }
 
 void TcpConnectionImpl::sendInLoop(Buffer& buffer) {
+    if (state_ != ConnectionState::CONNECTED) {
+        return;
+    }
+
     int fd = socket_.getFd();
 
     if (!channel_->isWriting()) {
         const std::span<const char> data = buffer.peek();
         ssize_t n = write(fd, data.data(), data.size());
-        if (n < 0) {
+        if (n > 0) {
+            buffer.consume(n);
+        }
+        else if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
             LOG_ERROR("write error: {}", strerror(errno));
             return;
         }
-
-        buffer.consume(n);
     }
 
     if (buffer.readableSize() > 0) {
         outBuffer_.append(buffer);
-    }
-
-    if (!channel_->isWriting() && buffer.readableSize() > 0) {
-        channel_->enableWriting();
+        buffer.consume(buffer.readableSize()); // 消费源 buffer，避免下次重复发送
+        if (!channel_->isWriting()) {
+            channel_->enableWriting();
+        }
     }
 }
 
@@ -135,7 +152,7 @@ void TcpConnectionImpl::handleRead() {
         return;
     }
 
-    inBuffer_.write(std::string(buff, n));
+    inBuffer_.write(std::span(buff, n));
     if (messageCallback_) {
         messageCallback_(conn_, inBuffer_);
     }
@@ -151,6 +168,9 @@ void TcpConnectionImpl::handleWrite() {
     const std::span<const char> data = outBuffer_.peek();
     ssize_t n = write(fd, data.data(), data.size());
     if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return; // 内核发送缓冲满，保持写使能，等待下次可写事件
+        }
         LOG_ERROR("write error: {}", strerror(errno));
         return;
     }
@@ -162,6 +182,10 @@ void TcpConnectionImpl::handleWrite() {
 }
 
 void TcpConnectionImpl::handleClose() {
+    if (state_ == ConnectionState::DISCONNECTED) {
+        return;
+    }
+
     LOG_INFO("client closed connection");
     state_ = ConnectionState::DISCONNECTED;
 
@@ -171,6 +195,10 @@ void TcpConnectionImpl::handleClose() {
 }
 
 void TcpConnectionImpl::handleError() const {
+    if (state_ == ConnectionState::DISCONNECTED) {
+        return;
+    }
+
     int optval{};
     socklen_t optlen = sizeof(optval);
     int fd = socket_.getFd();

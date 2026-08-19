@@ -44,15 +44,15 @@ bool TcpConnection::isConnected() const {
 }
 
 void TcpConnection::send(Buffer& buffer) const {
-    impl_->send(buffer);
+    impl_->send(buffer, shared_from_this());
 }
 
 void TcpConnection::send(const std::span<char>& buffer) const {
-    impl_->send(buffer);
+    impl_->send(buffer, shared_from_this());
 }
 
 void TcpConnection::shutdown() const {
-    impl_->shutdown();
+    impl_->shutdown(shared_from_this());
 }
 
 void TcpConnection::setConnectionCallback(ConnectionCallback cb) const {

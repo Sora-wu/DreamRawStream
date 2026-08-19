@@ -14,6 +14,7 @@ namespace Dream::detail {
     class EpollPoller final : public Poller {
     public:
         EpollPoller();
+        ~EpollPoller();
 
         void poll(std::vector<Channel*>& activeChannels, int timeout) override;
 

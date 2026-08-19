@@ -17,7 +17,7 @@ namespace Dream {
         class TcpConnectionImpl;
     }
 
-    class TcpConnection {
+    class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
     public:
         TcpConnection(EventLoop* loop, const std::string& name, int fd, const Address& localAddress, const Address& remoteAddress);
         ~TcpConnection();

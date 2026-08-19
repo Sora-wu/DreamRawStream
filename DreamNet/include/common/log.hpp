@@ -64,10 +64,9 @@ public:
         std::string message = std::vformat(fmt, std::make_format_args(args...));
 
         // ---- 组装整条日志 ----
-        std::string logLine = std::format("{}[{}] [{}] [{}:{}] [{}] {}{}",
-                                          color, timestamp, levelStr,
-                                          fileName, line, threadId,
-                                          message, reset);
+        std::string logLine = std::format("{}[{}] [{}] [{}] {} [{}:{}] {}",
+                                          color, timestamp, levelStr, threadId,
+                                          message, fileName, line, reset);
 
         std::println("{}", logLine);
         if (level == Level::FATAL) {

@@ -76,7 +76,7 @@ void detail::TcpServerImpl::onNewConnection(int fd, const Address& peerAddr) {
     connection->setCloseCallback([this](TcpConnection* conn) { onConnectionClose(conn); });
     connections_[connName] = connection;
 
-    loop->runInLoop([&] {
+    loop->runInLoop([connection] {
         connection->connectEstablished();
     });
 }

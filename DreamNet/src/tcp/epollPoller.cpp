@@ -7,6 +7,8 @@
 #include <common/define.h>
 #include <tcp/channel.h>
 
+#include <unistd.h>
+
 using namespace Dream::detail;
 
 namespace {
@@ -32,6 +34,10 @@ EpollPoller::EpollPoller() :
     if (epFD_ < 0) {
         LOG_FATAL("epoll_create1 error: {}", strerror(errno));
     }
+}
+
+EpollPoller::~EpollPoller() {
+    ::close(epFD_);
 }
 
 void EpollPoller::poll(std::vector<Channel*>& activeChannels, int timeout) {

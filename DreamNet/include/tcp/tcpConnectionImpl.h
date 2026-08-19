@@ -33,9 +33,9 @@ namespace Dream::detail {
         void connectEstablished();
         void connectDestroyed();
         [[nodiscard]] bool isConnected() const;
-        void send(Buffer& buffer);
-        void send(const std::span<char>& buffer);
-        void shutdown();
+        void send(Buffer& buffer, std::shared_ptr<const TcpConnection> self);
+        void send(const std::span<char>& buffer, std::shared_ptr<const TcpConnection> self);
+        void shutdown(std::shared_ptr<const TcpConnection> self);
 
         void setConnectionCallback(ConnectionCallback cb);
         void setMessageCallback(MessageCallback cb);
