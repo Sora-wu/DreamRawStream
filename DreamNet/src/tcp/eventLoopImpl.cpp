@@ -49,11 +49,12 @@ void EventLoopImpl::loop() {
 
 void EventLoopImpl::quit() {
     isQuit_ = true;
+    wakeup(); // 唤醒 poll，让loop()立即退出，而不是等poll超时
 }
 
 void EventLoopImpl::wakeup() const {
     const uint64_t one = 1;
-    const uint32_t res = write(evtFD_, &one, sizeof one);
+    const uint32_t res = write(evtFD_, &one, sizeof(one));
     if (res != sizeof(one)) {
         LOG_ERROR("wakeup write {} instead of {}", res, sizeof(one));
     }

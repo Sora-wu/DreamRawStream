@@ -16,8 +16,8 @@
 class AudioCapturer : public DreamThread, public DataHandler {
 public:
     explicit AudioCapturer(std::chrono::time_point<std::chrono::steady_clock> baseTime) : baseTime_(baseTime) {}
-    // 设置音频，这个函数应该在开启线程之前调用
-    void setAudio(Audio* audio);
+    // 设置音频（接管所有权），这个函数应该在开启线程之前调用
+    void setAudio(std::unique_ptr<Audio> audio);
 
 protected:
     void run(std::stop_token st) override;

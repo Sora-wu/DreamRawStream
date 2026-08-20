@@ -14,23 +14,59 @@ namespace {
     constexpr uint32_t VIDEO_QUE_SIZE = 256;
 }
 
-StreamServer::StreamServer(EventLoop* loop, const Address& address) :
-    loop_(loop), server_(std::make_unique<TcpServer>(loop, address)),
-    audioQue_(AUDIO_QUE_SIZE), videoQue_(VIDEO_QUE_SIZE) {}
+StreamServer::StreamServer(EventLoop* loop, const Address& address,
+                           std::unique_ptr<Camera> camera, std::unique_ptr<Audio> audio) :
+    baseTime_(std::chrono::steady_clock::now()),
+    cameraCapturer_(baseTime_),
+    audioCapturer_(baseTime_),
+    loop_(loop),
+    server_(std::make_unique<TcpServer>(loop, address)),
+    audioQue_(AUDIO_QUE_SIZE),
+    videoQue_(VIDEO_QUE_SIZE) {
+    cameraCapturer_.setCamera(std::move(camera));
+    audioCapturer_.setAudio(std::move(audio));
+    cameraCapturer_.setNextHandler(this);
+    audioCapturer_.setNextHandler(this);
+}
+
+StreamServer::~StreamServer() {
+    stopServer();
+}
 
 void StreamServer::startServer(uint32_t threadCount) {
-    start("server thread");
+    if (started_.exchange(true)) {
+        return;
+    }
 
     server_->setThreadCount(threadCount);
     server_->start();
+
+    // 消费者先于生产者启动，避免采集帧无处可去
+    start("stream-push");
+    cameraCapturer_.start("capture-video");
+    audioCapturer_.start("capture-audio");
 }
 
 void StreamServer::stopServer() {
-    loop_->quit();
+    if (stopped_.exchange(true)) {
+        return;
+    }
+
+    // 停止生产者
+    cameraCapturer_.exit();
+    audioCapturer_.exit();
     audioQue_.close();
     videoQue_.close();
+    cameraCapturer_.wait();
+    audioCapturer_.wait();
 
+    // 停止消费者
     exit();
+    wait();
+    while (videoQue_.try_pop()) {}
+    while (audioQue_.try_pop()) {}
+
+    loop_->quit();
 }
 
 void StreamServer::handle(void* data) {

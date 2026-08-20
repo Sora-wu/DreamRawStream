@@ -11,8 +11,8 @@
 #include <print>
 #include <cassert>
 
-void CameraCapturer::setCamera(Camera* camera) {
-    camera_.reset(camera);
+void CameraCapturer::setCamera(std::unique_ptr<Camera> camera) {
+    camera_ = std::move(camera);
 }
 
 void CameraCapturer::run(std::stop_token st) {

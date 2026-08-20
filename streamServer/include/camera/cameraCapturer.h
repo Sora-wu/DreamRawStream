@@ -16,8 +16,8 @@
 class CameraCapturer : public DreamThread, public DataHandler {
 public:
     explicit CameraCapturer(std::chrono::time_point<std::chrono::steady_clock> baseTime) : baseTime_(baseTime) {}
-    // 设置摄像头，这个函数应该在开启线程之前调用
-    void setCamera(Camera* camera);
+    // 设置摄像头（接管所有权），这个函数应该在开启线程之前调用
+    void setCamera(std::unique_ptr<Camera> camera);
 
 protected:
     void run(std::stop_token st) override;

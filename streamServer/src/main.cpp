@@ -3,18 +3,27 @@
 // Mail: sora-wu@foxmail.com
 //
 
-#include <camera/cameraCapturer.h>
-#include <camera/audioCapturer.h>
+#include <camera/camera.h>
+#include <camera/audio.h>
 #include <server/streamServer.h>
+#include <DreamNet/DreamNet.h>
 
 #include <print>
-
-#include <DreamNet/DreamNet.h>
+#include <memory>
+#include <thread>
+#include <csignal>
 
 using namespace Dream;
 
 namespace {
     constexpr uint32_t THREAD_COUNT = 16;
+
+    void blockShutdownSignals(sigset_t& set) {
+        sigemptyset(&set);
+        sigaddset(&set, SIGINT);
+        sigaddset(&set, SIGTERM);
+        pthread_sigmask(SIG_BLOCK, &set, nullptr);
+    }
 }
 
 int main(int argc, char** argv) {
@@ -23,26 +32,35 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    sigset_t shutdownSignals{};
+    blockShutdownSignals(shutdownSignals);
+
     CameraParam param{};
-    Camera* camera = new Camera(argv[1], param);
-
-    auto baseTime = std::chrono::steady_clock::now();
-    CameraCapturer* cameraCapturer = new CameraCapturer(baseTime);
-    cameraCapturer->setCamera(camera);
-
-    Audio* audio = new Audio;
-    AudioCapturer* audioCapturer = new AudioCapturer(baseTime);
-    audioCapturer->setAudio(audio);
+    auto camera = std::make_unique<Camera>(argv[1], param);
+    auto audio = std::make_unique<Audio>();
 
     EventLoop loop;
-    const Address adress{ 11451 };
-    StreamServer* server = new StreamServer(&loop, adress);
-    cameraCapturer->setNextHandler(server);
-    audioCapturer->setNextHandler(server);
-    server->startServer(THREAD_COUNT);
+    const Address address{ 11451 };
+    StreamServer server(&loop, address, std::move(camera), std::move(audio));
 
-    cameraCapturer->start("capturerV thread");
-    audioCapturer->start("capturerA thread");
+    server.startServer(THREAD_COUNT);
+
+    std::jthread signalWatcher([&shutdownSignals, &server](std::stop_token st) {
+        while (!st.stop_requested()) {
+            timespec timeout{ 0, 100'000'000 };  // 100ms
+            siginfo_t info{};
+            const int sig = sigtimedwait(&shutdownSignals, &info, &timeout);
+
+            if (sig == SIGINT || sig == SIGTERM) {
+                std::println("stop server");
+                server.stopServer();
+                return;
+            }
+            if (sig < 0 && errno != EAGAIN && errno != EINTR) {
+                return;  // 意外错误，避免空转
+            }
+        }
+    });
 
     loop.loop();
 

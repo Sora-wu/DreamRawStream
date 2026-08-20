@@ -9,8 +9,8 @@
 #include <cassert>
 #include <print>
 
-void AudioCapturer::setAudio(Audio* audio) {
-    audio_.reset(audio);
+void AudioCapturer::setAudio(std::unique_ptr<Audio> audio) {
+    audio_ = std::move(audio);
 }
 
 void AudioCapturer::run(std::stop_token st) {
