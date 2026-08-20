@@ -16,17 +16,21 @@ namespace {
 
 StreamServer::StreamServer(EventLoop* loop, const Address& address) :
     loop_(loop), server_(std::make_unique<TcpServer>(loop, address)),
-    audioQue_(AUDIO_QUE_SIZE), videoQue_(VIDEO_QUE_SIZE) {
+    audioQue_(AUDIO_QUE_SIZE), videoQue_(VIDEO_QUE_SIZE) {}
 
-}
+void StreamServer::startServer(uint32_t threadCount) {
+    start("server thread");
 
-void StreamServer::startServer(uint32_t threadCount) const {
     server_->setThreadCount(threadCount);
     server_->start();
 }
 
-void StreamServer::stopServer() const {
+void StreamServer::stopServer() {
     loop_->quit();
+    audioQue_.close();
+    videoQue_.close();
+
+    exit();
 }
 
 void StreamServer::handle(void* data) {
@@ -55,8 +59,6 @@ void StreamServer::run(std::stop_token st) {
 
         const Frame& frame = *frameOpt;
         server_->sendBroadcast(frame.buffer.data, frame.buffer.size);
-        MemoryPool* pool = frame.buffer.pool;
-        pool->deallocate(frame.buffer.data, frame.buffer.size);
     }
 }
 

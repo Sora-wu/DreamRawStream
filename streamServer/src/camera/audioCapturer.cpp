@@ -20,19 +20,11 @@ void AudioCapturer::run(std::stop_token st) {
     const uint32_t bytesPerSample = audio_->getBytesPerSample();
     aacEncoder_ = std::make_unique<FdkAACEncoder>(sampleRate, channels, bytesPerSample);
 
-    auto baseTime = std::chrono::steady_clock::now();
-    bool isFirstFrame = true;
-
     while (!st.stop_requested()) {
         AudioFrame frame = audio_->getBuffer();
         if (!frame.data.empty()) {
             auto captureTime = std::chrono::steady_clock::now();
-            if (isFirstFrame) {
-                baseTime = captureTime;
-                isFirstFrame = false;
-            }
-
-            const int64_t currentPTS = std::chrono::duration_cast<std::chrono::milliseconds>(captureTime - baseTime).count();
+            const int64_t currentPTS = std::chrono::duration_cast<std::chrono::milliseconds>(captureTime - baseTime_).count();
             std::span<char> encodeBuffer = aacEncoder_->encode(frame.data);
             if (!encodeBuffer.empty()) {
                 char* buffer = pool_.allocate(encodeBuffer.size());

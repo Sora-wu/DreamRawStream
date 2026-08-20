@@ -13,6 +13,10 @@
 
 using namespace Dream;
 
+namespace {
+    constexpr uint32_t THREAD_COUNT = 16;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         std::println(stderr, "Usage: {} <camera url>", argv[0]);
@@ -21,12 +25,13 @@ int main(int argc, char** argv) {
 
     CameraParam param{};
     Camera* camera = new Camera(argv[1], param);
-    auto [width, height] = camera->getActualResolution();
-    CameraCapturer* cameraCapturer = new CameraCapturer;
+
+    auto baseTime = std::chrono::steady_clock::now();
+    CameraCapturer* cameraCapturer = new CameraCapturer(baseTime);
     cameraCapturer->setCamera(camera);
 
     Audio* audio = new Audio;
-    AudioCapturer* audioCapturer = new AudioCapturer;
+    AudioCapturer* audioCapturer = new AudioCapturer(baseTime);
     audioCapturer->setAudio(audio);
 
     EventLoop loop;
@@ -34,10 +39,10 @@ int main(int argc, char** argv) {
     StreamServer* server = new StreamServer(&loop, adress);
     cameraCapturer->setNextHandler(server);
     audioCapturer->setNextHandler(server);
+    server->startServer(THREAD_COUNT);
 
     cameraCapturer->start("capturerV thread");
     audioCapturer->start("capturerA thread");
-    server->start("server");
 
     loop.loop();
 

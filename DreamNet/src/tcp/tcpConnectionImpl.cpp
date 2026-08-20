@@ -13,7 +13,7 @@ using namespace Dream::detail;
 
 namespace {
     constexpr uint32_t BUFFER_SIZE = 1024 * 64;
-    constexpr uint32_t HIGH_WATER_MARK_SIZE = 1024 * 1024 * 64;         // 64M
+    constexpr uint32_t HIGH_WATER_MARK_SIZE = 1024 * 1024;         // 1M
 }
 
 TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, const std::string& name, int fd,
@@ -145,10 +145,11 @@ void TcpConnectionImpl::sendInLoop(Buffer& buffer) {
     }
 
     if (buffer.readableSize() > 0) {
-        if (buffer.readableSize() < HIGH_WATER_MARK_SIZE && buffer.readableSize() + buffer.readableSize() >= HIGH_WATER_MARK_SIZE
+        if (outBuffer_.readableSize() < HIGH_WATER_MARK_SIZE && outBuffer_.readableSize() + buffer.readableSize() >= HIGH_WATER_MARK_SIZE
             && highWaterMarkCallback_) {
             // 触发高水位预警
             highWaterMarkCallback_(conn_);
+            return;
         }
 
         outBuffer_.append(buffer);
@@ -198,6 +199,9 @@ void TcpConnectionImpl::handleWrite() {
 
     outBuffer_.consume(n);
     if (outBuffer_.readableSize() == 0) {
+        if (writeCompleteCallback_) {
+            writeCompleteCallback_(conn_);
+        }
         channel_->disableWriting();
     }
 }

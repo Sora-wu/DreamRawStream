@@ -24,8 +24,6 @@ namespace Dream {
 
         void setThreadCount(uint32_t threadCount) const;
         void start() const;
-        // void forEachConnect(std::function<void(TcpConnection*)> callback) const;
-        // uint32_t getConnectionCount() const;
         void sendBroadcast(const Buffer& buffer) const;
         void sendBroadcast(const std::span<char>& buffer) const;
         void sendBroadcast(const char* data, uint32_t size) const;

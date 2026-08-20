@@ -17,8 +17,8 @@ class StreamServer : public DataHandler, public DreamThread {
 public:
     StreamServer(Dream::EventLoop* loop, const Dream::Address& address);
 
-    void startServer(uint32_t threadCount) const;
-    void stopServer() const;
+    void startServer(uint32_t threadCount);
+    void stopServer();
 
     ////////////////DataHandler//////////////////////////
     void handle(void* data) override;

@@ -30,14 +30,6 @@ void TcpServer::start() const {
     impl_->start();
 }
 
-// void TcpServer::forEachConnect(std::function<void(TcpConnection*)> callback) const {
-//     impl_->forEachConnect(std::move(callback));
-// }
-//
-// uint32_t TcpServer::getConnectionCount() const {
-//     return impl_->getConnectionCount();
-// }
-
 void TcpServer::sendBroadcast(const Buffer& buffer) const {
     impl_->sendBroadcast(buffer);
 }

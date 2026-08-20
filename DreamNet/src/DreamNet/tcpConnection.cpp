@@ -54,6 +54,7 @@ void TcpConnection::send(const std::span<char>& buffer) const {
 void TcpConnection::send(const char* data, size_t size) const {
     impl_->send(data, size, shared_from_this());
 }
+
 void TcpConnection::shutdown() const {
     impl_->shutdown(shared_from_this());
 }

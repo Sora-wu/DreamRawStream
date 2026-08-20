@@ -22,19 +22,11 @@ void CameraCapturer::run(std::stop_token st) {
     assert(camera_);
     camera_->startCapture();
 
-    auto baseTime = std::chrono::steady_clock::now();
-    bool isFirstFrame = true;
-
     while (!st.stop_requested()) {
         CameraFrame cameraFrame = camera_->getBuffer();
         if (!cameraFrame.data.empty()) {
             auto captureTime = std::chrono::steady_clock::now();
-            if (isFirstFrame) {
-                baseTime = captureTime;
-                isFirstFrame = false;
-            }
-
-            const int64_t currentPTS = std::chrono::duration_cast<std::chrono::milliseconds>(captureTime - baseTime).count();
+            const int64_t currentPTS = std::chrono::duration_cast<std::chrono::milliseconds>(captureTime - baseTime_).count();
             std::span<char> encodeBuffer = h264Encoder_->encode(cameraFrame.data.data());
             if (!encodeBuffer.empty()) {
                 char* buffer = pool_.allocate(encodeBuffer.size());

@@ -32,6 +32,7 @@ detail::TcpServerImpl::TcpServerImpl(EventLoop* loop, const Address& addr) :
 }
 
 detail::TcpServerImpl::~TcpServerImpl() {
+    std::unique_lock lock(smutx_);
     for (auto& conn : connections_ | std::views::values) {
         conn->getLoop()->runInLoop([conn] {
             conn->connectDestroyed();
@@ -69,32 +70,24 @@ void detail::TcpServerImpl::forEachConnect(const std::function<void(TcpConnectio
 }
 
 uint32_t detail::TcpServerImpl::getConnectionCount() {
-    std::vector<TcpConnectionPtr> snapshotConn;
-
-    {
-        std::shared_lock lock(smutx_);
-        for (auto& conn : connections_ | std::views::values) {
-            snapshotConn.push_back(conn);
-        }
-    }
-
-    return snapshotConn.size();
+    std::shared_lock lock(smutx_);
+    return connections_.size();
 }
 
 void detail::TcpServerImpl::sendBroadcast(const Buffer& buffer) {
-    forEachConnect([buff = std::move(buffer)](TcpConnection* conn) {
-        conn->send(buff);
+    forEachConnect([&](TcpConnection* conn) {
+        conn->send(buffer);
     });
 }
 
 void detail::TcpServerImpl::sendBroadcast(const std::span<char>& buffer) {
-    forEachConnect([buff = std::move(buffer)](TcpConnection* conn) {
-        conn->send(buff);
+    forEachConnect([&](TcpConnection* conn) {
+        conn->send(buffer);
     });
 }
 
 void detail::TcpServerImpl::sendBroadcast(const char* data, uint32_t size) {
-    forEachConnect([data = std::move(data), size](TcpConnection* conn) {
+    forEachConnect([&](TcpConnection* conn) {
         conn->send(data, size);
     });
 }
