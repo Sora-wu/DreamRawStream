@@ -33,13 +33,16 @@ namespace Dream::detail {
         void connectEstablished();
         void connectDestroyed();
         [[nodiscard]] bool isConnected() const;
-        void send(Buffer& buffer, std::shared_ptr<const TcpConnection> self);
+        void send(const Buffer& buffer, std::shared_ptr<const TcpConnection> self);
         void send(const std::span<char>& buffer, std::shared_ptr<const TcpConnection> self);
+        void send(const char* data, size_t size, std::shared_ptr<const TcpConnection> self);
         void shutdown(std::shared_ptr<const TcpConnection> self);
 
         void setConnectionCallback(ConnectionCallback cb);
         void setMessageCallback(MessageCallback cb);
         void setCloseCallback(CloseCallback cb);
+        void setHighWaterMarkCallback(HighWaterMarkCallback cb);
+        void setWriteCompleteCallback(WriteCompleteCallback cb);
 
     private:
         void sendInLoop(Buffer& buffer);
@@ -67,5 +70,7 @@ namespace Dream::detail {
         ConnectionCallback connectionCallback_ = nullptr;
         MessageCallback messageCallback_ = nullptr;
         CloseCallback closeCallback_ = nullptr;
+        HighWaterMarkCallback highWaterMarkCallback_ = nullptr;
+        WriteCompleteCallback writeCompleteCallback_ = nullptr;
     };
 }

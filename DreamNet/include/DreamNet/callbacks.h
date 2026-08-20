@@ -14,4 +14,6 @@ namespace Dream {
     using ConnectionCallback = std::function<void(TcpConnection*)>;
     using MessageCallback = std::function<void(TcpConnection*, Buffer&)>;
     using CloseCallback = std::function<void(TcpConnection*)>;
+    using HighWaterMarkCallback = std::function<void(TcpConnection*)>;
+    using WriteCompleteCallback = std::function<void(TcpConnection*)>;
 }

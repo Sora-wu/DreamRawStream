@@ -12,7 +12,8 @@
 using namespace Dream::detail;
 
 namespace {
-    constexpr int BUFFER_SIZE = 1024 * 64;
+    constexpr uint32_t BUFFER_SIZE = 1024 * 64;
+    constexpr uint32_t HIGH_WATER_MARK_SIZE = 1024 * 1024 * 64;         // 64M
 }
 
 TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, const std::string& name, int fd,
@@ -64,13 +65,8 @@ bool TcpConnectionImpl::isConnected() const {
     return state_ == ConnectionState::CONNECTED;
 }
 
-void TcpConnectionImpl::send(Buffer& buffer, std::shared_ptr<const TcpConnection> self) {
-    // 拷贝数据并消费源 buffer，避免按引用捕获局部变量造成悬垂引用
-    Buffer buf;
-    buf.append(buffer);
-    buffer.consume(buffer.readableSize());
-
-    loop_->runInLoop([this, self = std::move(self), buf = std::move(buf)]() mutable {
+void TcpConnectionImpl::send(const Buffer& buffer, std::shared_ptr<const TcpConnection> self) {
+    loop_->runInLoop([this, self = std::move(self), buf = std::move(buffer)]() mutable {
         (void)self; // 仅持有owner引用，保证this在functor执行前不被析构，下同
         sendInLoop(buf);
     });
@@ -79,6 +75,17 @@ void TcpConnectionImpl::send(Buffer& buffer, std::shared_ptr<const TcpConnection
 void TcpConnectionImpl::send(const std::span<char>& data, std::shared_ptr<const TcpConnection> self) {
     Buffer buf;
     buf.write(data);
+
+    loop_->runInLoop([this, self = std::move(self), buf = std::move(buf)]() mutable {
+        (void)self;
+        sendInLoop(buf);
+    });
+}
+
+void TcpConnectionImpl::send(const char* data, size_t size, std::shared_ptr<const TcpConnection> self) {
+    std::span buffer(data, size);
+    Buffer buf;
+    buf.write(buffer);
 
     loop_->runInLoop([this, self = std::move(self), buf = std::move(buf)]() mutable {
         (void)self;
@@ -110,6 +117,14 @@ void TcpConnectionImpl::setCloseCallback(CloseCallback cb) {
     closeCallback_ = std::move(cb);
 }
 
+void TcpConnectionImpl::setHighWaterMarkCallback(HighWaterMarkCallback cb) {
+    highWaterMarkCallback_ = std::move(cb);
+}
+
+void TcpConnectionImpl::setWriteCompleteCallback(WriteCompleteCallback cb) {
+    writeCompleteCallback_ = std::move(cb);
+}
+
 void TcpConnectionImpl::sendInLoop(Buffer& buffer) {
     if (state_ != ConnectionState::CONNECTED) {
         return;
@@ -130,6 +145,12 @@ void TcpConnectionImpl::sendInLoop(Buffer& buffer) {
     }
 
     if (buffer.readableSize() > 0) {
+        if (buffer.readableSize() < HIGH_WATER_MARK_SIZE && buffer.readableSize() + buffer.readableSize() >= HIGH_WATER_MARK_SIZE
+            && highWaterMarkCallback_) {
+            // 触发高水位预警
+            highWaterMarkCallback_(conn_);
+        }
+
         outBuffer_.append(buffer);
         buffer.consume(buffer.readableSize()); // 消费源 buffer，避免下次重复发送
         if (!channel_->isWriting()) {

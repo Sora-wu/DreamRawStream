@@ -43,7 +43,7 @@ bool TcpConnection::isConnected() const {
     return impl_->isConnected();
 }
 
-void TcpConnection::send(Buffer& buffer) const {
+void TcpConnection::send(const Buffer& buffer) const {
     impl_->send(buffer, shared_from_this());
 }
 
@@ -51,6 +51,9 @@ void TcpConnection::send(const std::span<char>& buffer) const {
     impl_->send(buffer, shared_from_this());
 }
 
+void TcpConnection::send(const char* data, size_t size) const {
+    impl_->send(data, size, shared_from_this());
+}
 void TcpConnection::shutdown() const {
     impl_->shutdown(shared_from_this());
 }
@@ -65,4 +68,12 @@ void TcpConnection::setMessageCallback(MessageCallback cb) const {
 
 void TcpConnection::setCloseCallback(CloseCallback cb) const {
     impl_->setCloseCallback(std::move(cb));
+}
+
+void TcpConnection::setHighWaterMarkCallback(HighWaterMarkCallback cb) const {
+    impl_->setHighWaterMarkCallback(std::move(cb));
+}
+
+void TcpConnection::setWriteCompleteCallback(WriteCompleteCallback cb) const {
+    impl_->setWriteCompleteCallback(std::move(cb));
 }

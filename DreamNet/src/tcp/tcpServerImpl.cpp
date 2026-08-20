@@ -24,6 +24,11 @@ detail::TcpServerImpl::TcpServerImpl(EventLoop* loop, const Address& addr) :
     acceptor_->setNewConnectionFunc([this](int fd, const Address& addr) {
         onNewConnection(fd, addr);
     });
+
+    // 高水位回调默认关闭对方连接
+    highWaterMarkCallback_ = [this](TcpConnection* conn) {
+        onConnectionClose(conn);
+    };
 }
 
 detail::TcpServerImpl::~TcpServerImpl() {
@@ -48,12 +53,66 @@ void detail::TcpServerImpl::start() {
     }
 }
 
+void detail::TcpServerImpl::forEachConnect(const std::function<void(TcpConnection*)>& callback) {
+    std::vector<TcpConnectionPtr> snapshotConn;
+
+    {
+        std::shared_lock lock(smutx_);
+        for (auto& conn : connections_ | std::views::values) {
+            snapshotConn.push_back(conn);
+        }
+    }
+
+    for (auto& conn : snapshotConn) {
+        callback(conn.get());
+    }
+}
+
+uint32_t detail::TcpServerImpl::getConnectionCount() {
+    std::vector<TcpConnectionPtr> snapshotConn;
+
+    {
+        std::shared_lock lock(smutx_);
+        for (auto& conn : connections_ | std::views::values) {
+            snapshotConn.push_back(conn);
+        }
+    }
+
+    return snapshotConn.size();
+}
+
+void detail::TcpServerImpl::sendBroadcast(const Buffer& buffer) {
+    forEachConnect([buff = std::move(buffer)](TcpConnection* conn) {
+        conn->send(buff);
+    });
+}
+
+void detail::TcpServerImpl::sendBroadcast(const std::span<char>& buffer) {
+    forEachConnect([buff = std::move(buffer)](TcpConnection* conn) {
+        conn->send(buff);
+    });
+}
+
+void detail::TcpServerImpl::sendBroadcast(const char* data, uint32_t size) {
+    forEachConnect([data = std::move(data), size](TcpConnection* conn) {
+        conn->send(data, size);
+    });
+}
+
 void detail::TcpServerImpl::setConnectionCallback(ConnectionCallback cb) {
     connectionCallback_ = std::move(cb);
 }
 
 void detail::TcpServerImpl::setMessageCallback(MessageCallback cb) {
     messageCallback_ = std::move(cb);
+}
+
+void detail::TcpServerImpl::setHighWaterMarkCallback(HighWaterMarkCallback cb) {
+    highWaterMarkCallback_ = std::move(cb);
+}
+
+void detail::TcpServerImpl::setWriteCompleteCallback(WriteCompleteCallback cb) {
+    writeCompleteCallback_ = std::move(cb);
 }
 
 void detail::TcpServerImpl::onNewConnection(int fd, const Address& peerAddr) {
@@ -73,8 +132,12 @@ void detail::TcpServerImpl::onNewConnection(int fd, const Address& peerAddr) {
     TcpConnectionPtr connection = std::make_shared<TcpConnection>(loop, connName, fd, local, peerAddr);
     connection->setConnectionCallback(connectionCallback_);
     connection->setMessageCallback(messageCallback_);
+    connection->setHighWaterMarkCallback(highWaterMarkCallback_);
     connection->setCloseCallback([this](TcpConnection* conn) { onConnectionClose(conn); });
-    connections_[connName] = connection;
+    {
+        std::unique_lock lock(smutx_);
+        connections_[connName] = connection;
+    }
 
     loop->runInLoop([connection] {
         connection->connectEstablished();
@@ -90,6 +153,8 @@ void detail::TcpServerImpl::onConnectionClose(TcpConnection* connection) {
         std::string name = connection->getName();
         const Address& addr = connection->getRemoteAddress();
         LOG_INFO("connection closed, connection name: {}, {}:{}", name, addr.getIP(), addr.getPort());
+
+        std::unique_lock lock(smutx_);
         connections_.erase(name);
     });
 }

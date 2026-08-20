@@ -32,13 +32,16 @@ namespace Dream {
         void connectEstablished() const;
         void connectDestroyed() const;
         [[nodiscard]] bool isConnected() const;
-        void send(Buffer& buffer) const;
+        void send(const Buffer& buffer) const;
         void send(const std::span<char>& buffer) const;
+        void send(const char* data, size_t size) const;
         void shutdown() const;
 
         void setConnectionCallback(ConnectionCallback cb) const;
         void setMessageCallback(MessageCallback cb) const;
         void setCloseCallback(CloseCallback cb) const;
+        void setHighWaterMarkCallback(HighWaterMarkCallback cb) const;
+        void setWriteCompleteCallback(WriteCompleteCallback cb) const;
 
     private:
         std::unique_ptr<detail::TcpConnectionImpl> impl_;
