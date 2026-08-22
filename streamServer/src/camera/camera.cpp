@@ -134,9 +134,6 @@ void Camera::init() {
     std::println("the camera bus info is {}", reinterpret_cast<const char*>(capability_.bus_info));
     std::println("the version is {}", capability_.version);
 
-    /* Select video input, video standard and tune here. */
-    cropcap_.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
     format_.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     format_.fmt.pix.width = param_.width;
     format_.fmt.pix.height = param_.height;

@@ -52,7 +52,6 @@ private:
     int fd_ = -1;
 
     v4l2_capability capability_{};
-    v4l2_cropcap cropcap_{};
     v4l2_format format_{};
 
     std::vector<Buffer> buffers_;

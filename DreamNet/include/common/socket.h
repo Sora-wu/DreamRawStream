@@ -23,9 +23,10 @@ namespace Dream::detail {
             return fd_;
         }
 
-        void bind(const Dream::Address& address);
+        void bind(const Address& address);
         void listen();
-        [[nodiscard]] int accept(Dream::Address& peerAddress);
+        [[nodiscard]] int connect(const Address& address) const;
+        [[nodiscard]] int accept(Address& peerAddress);
         void shutdown() const;
 
         void setTcpNoDelay(bool on) const;
@@ -36,4 +37,4 @@ namespace Dream::detail {
     private:
         int fd_ = -1;
     };
-} // namespace Dream::detail
+}

@@ -25,7 +25,9 @@ else()
 endif()
 
 add_executable(echoServer echoServer/echoServer.cpp)
+add_executable(echoClient echoServer/echoClient.cpp)
 target_link_libraries(echoServer PRIVATE Dream::Net)
+target_link_libraries(echoClient PRIVATE Dream::Net)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 add_subdirectory(streamServer)

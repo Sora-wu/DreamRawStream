@@ -25,7 +25,7 @@ Socket::~Socket() {
     }
 }
 
-void Socket::bind(const Dream::Address& address) {
+void Socket::bind(const Address& address) {
     sockaddr_in addr = address.getAddr();
     if (::bind(fd_, (sockaddr*)&addr, sizeof(sockaddr_in))) {
         LOG_FATAL("bind error, fd: {}, {}", fd_, strerror(errno));
@@ -38,7 +38,12 @@ void Socket::listen() {
     }
 }
 
-int Socket::accept(Dream::Address& peerAddress) {
+int Socket::connect(const Address& address) const {
+    sockaddr_in addr = address.getAddr();
+    return ::connect(fd_, (sockaddr*)&addr, sizeof(sockaddr_in));
+}
+
+int Socket::accept(Address& peerAddress) {
     sockaddr_in addr{};
     socklen_t addrlen = sizeof(addr);
     int connfd = ::accept4(fd_, (sockaddr*)&addr, &addrlen, SOCK_CLOEXEC | SOCK_NONBLOCK);
