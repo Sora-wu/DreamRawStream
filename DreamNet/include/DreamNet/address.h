@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <functional>
 #include <string>
 
 #include <netinet/in.h>

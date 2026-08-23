@@ -5,7 +5,10 @@
 
 #include <DreamNet/DreamNet.h>
 
+#include <iostream>
 #include <print>
+#include <string>
+#include <thread>
 
 class EchoClient {
 public:
@@ -16,6 +19,14 @@ public:
 
     void connect() {
         client_.connect();
+        startInputLoop();
+    }
+
+    // 在事件循环退出后调用，回收输入线程。
+    void stop() {
+        if (inputThread_.joinable()) {
+            inputThread_.join();
+        }
     }
 
 private:
@@ -29,13 +40,30 @@ private:
     }
 
     void onMessage(Dream::TcpConnection* conn, Dream::Buffer& buffer) {
-        std::string_view msg = buffer.view();
+        std::string_view msg = buffer.getView();
         std::print("recv: {}", msg);
+    }
+
+    void startInputLoop() {
+        std::println("type a line and press Enter to send, Ctrl+D to quit");
+
+        inputThread_ = std::jthread([this] {
+            std::string line;
+            while (std::getline(std::cin, line)) {
+                line.push_back('\n');
+                loop_->runInLoop([this, line = std::move(line)] {
+                    client_.send(line.data(), static_cast<uint32_t>(line.size()));
+                });
+            }
+
+            loop_->runInLoop([this] { loop_->quit(); });
+        });
     }
 
 private:
     Dream::EventLoop* loop_ = nullptr;
     Dream::TcpClient client_;
+    std::jthread inputThread_;
 };
 
 int main() {
@@ -45,6 +73,7 @@ int main() {
     client.connect();
 
     loop.loop();
+    client.stop();
 
     return 0;
 }

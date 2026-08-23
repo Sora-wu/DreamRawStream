@@ -5,11 +5,20 @@
 
 #include <DreamNet/tcpClient.h>
 #include <tcp/tcpClientImpl.h>
+#include <tcp/connector.h>
+#include <tcp/channel.h>
 
 using namespace Dream;
 
 TcpClient::TcpClient(EventLoop* loop, const Address& address) :
     impl_(new detail::TcpClientImpl(loop, address)) {}
+
+TcpClient::~TcpClient() {
+    if (impl_) {
+        delete impl_;
+        impl_ = nullptr;
+    }
+}
 
 void TcpClient::connect() const {
     impl_->connect();

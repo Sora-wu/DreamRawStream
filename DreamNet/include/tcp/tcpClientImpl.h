@@ -22,7 +22,7 @@ namespace Dream {
             TcpClientImpl(EventLoop* loop, const Address& addr);
 
             void connect() const;
-            void disconnect() const;
+            void disconnect();
             void setRetryInterval(uint32_t retryInterval) const;
             void send(const Buffer& buffer) const;
             void send(const std::span<char>& buffer) const;
@@ -34,7 +34,7 @@ namespace Dream {
 
         private:
             void onNewConnection(int fd, const Address& peerAddr);
-            void onConnectionClose(TcpConnection* connection) const;
+            void onConnectionClose(TcpConnection* connection);
 
         private:
             EventLoop* loop_ = nullptr;

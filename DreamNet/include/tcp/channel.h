@@ -27,6 +27,7 @@ namespace Dream::detail {
         using Functor = std::function<void()>;
 
         Channel(EventLoopImpl* loop, int fd);
+        ~Channel();
 
         [[nodiscard]] int getFd() const;
         [[nodiscard]] ChannelStatus getStatus() const;

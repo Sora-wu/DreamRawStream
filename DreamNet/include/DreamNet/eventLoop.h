@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <functional>
+#include <DreamNet/callbacks.h>
 #include <thread>
 
 namespace Dream::detail {
@@ -15,8 +15,6 @@ namespace Dream::detail {
 namespace Dream {
     class EventLoop {
     public:
-        using Functor = std::function<void()>;
-
         EventLoop();
         ~EventLoop();
         EventLoop(const EventLoop&) = delete;
@@ -27,6 +25,8 @@ namespace Dream {
 
         void wakeup() const;
         void runInLoop(Functor func) const;
+        void runAfter(Functor func, std::chrono::milliseconds delay) const;
+        void runAfter(Functor func, std::chrono::seconds delay) const;
         void queueInLoop(Functor func) const;
 
         [[nodiscard]] std::thread::id getThreadId() const;

@@ -11,6 +11,8 @@
 #include <DreamNet/eventLoop.h>
 #include <common/log.hpp>
 
+#include <format>
+
 using namespace Dream;
 
 detail::TcpClientImpl::TcpClientImpl(EventLoop* loop, const Address& addr) :
@@ -22,10 +24,19 @@ detail::TcpClientImpl::TcpClientImpl(EventLoop* loop, const Address& addr) :
 }
 
 void detail::TcpClientImpl::connect() const {
-    connector_->start();
+    loop_->runInLoop([this] {
+        connector_->start();
+    });
 }
 
-void detail::TcpClientImpl::disconnect() const {
+void detail::TcpClientImpl::disconnect() {
+    // 如果已经连接上，断开connection_即可
+    if (connection_) {
+        connection_->shutdown();
+        connection_.reset();
+        return;
+    }
+
     connector_->stop();
 }
 
@@ -34,14 +45,29 @@ void detail::TcpClientImpl::setRetryInterval(uint32_t retryInterval) const {
 }
 
 void detail::TcpClientImpl::send(const Buffer& buffer) const {
+    if (!connection_) {
+        LOG_ERROR("not connected, drop: {}", buffer.getView());
+        return;
+    }
+
     connection_->send(buffer);
 }
 
 void detail::TcpClientImpl::send(const std::span<char>& buffer) const {
+    if (!connection_) {
+        LOG_ERROR("not connected, drop: {}", std::string_view(buffer.data(), buffer.size()));
+        return;
+    }
+
     connection_->send(buffer);
 }
 
 void detail::TcpClientImpl::send(const char* data, uint32_t size) const {
+    if (!connection_) {
+        LOG_ERROR("not connected, drop: {}", std::string_view(data, size));
+        return;
+    }
+
     connection_->send(data, size);
 }
 
@@ -81,14 +107,16 @@ void detail::TcpClientImpl::onNewConnection(int fd, const Address& peerAddr) {
     });
 }
 
-void detail::TcpClientImpl::onConnectionClose(TcpConnection* connection) const {
+void detail::TcpClientImpl::onConnectionClose(TcpConnection* connection) {
     connection->getLoop()->runInLoop([connection] {
         connection->connectDestroyed();
     });
 
-    loop_->runInLoop([connection] {
+    loop_->runInLoop([connection, this] {
         std::string name = connection->getName();
         const Address& addr = connection->getRemoteAddress();
         LOG_INFO("connection closed, connection name: {}, {}:{}", name, addr.getIP(), addr.getPort());
+
+        connection_.reset();
     });
 }

@@ -18,6 +18,7 @@ namespace Dream {
     class TcpClient {
     public:
         TcpClient(EventLoop* loop, const Address& address);
+        ~TcpClient();
 
         void connect() const;
         void disconnect() const;

@@ -101,7 +101,7 @@ namespace Dream {
             writeIndex_ = 0;
         }
 
-        [[nodiscard]] std::string_view view() const {
+        [[nodiscard]] std::string_view getView() const {
             std::span<const char> data = peek();
             return std::string_view{ data.data(), data.size() };
         }

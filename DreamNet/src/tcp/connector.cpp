@@ -7,8 +7,10 @@
 #include <tcp/channel.h>
 #include <common/log.hpp>
 
-#include <unistd.h>
 #include <cstring>
+#include <unistd.h>
+
+#include "tcp/eventLoopImpl.h"
 
 using namespace Dream;
 
@@ -21,46 +23,41 @@ detail::Connector::Connector(EventLoopImpl* loop, const Address& addr) :
     addr_(addr),
     socket_(SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK),
     channel_(std::make_unique<Channel>(loop, socket_.getFd())) {
-    channel_->setOnWriteEvent([this]{ handleWrite(); });
+    channel_->setOnWriteEvent([this] { handleWrite(); });
+
+    initSocket();
 }
 
 void detail::Connector::start() {
-    uint32_t attempt = 0;
-    int sockfd = socket_.getFd();
+    const int sockfd = socket_.getFd();
 
-    while (attempt < MAX_RETRIES) {
-        int res = socket_.connect(addr_);
-        if (res == 0) {
-            if (newConnectionCallback_) {
-                newConnectionCallback_(socket_.getFd(), addr_);
-                return;
-            }
-
-            LOG_WARN("the connect callback is not set yet, will close new client by default");
+    int res = socket_.connect(addr_);
+    if (res == 0) {
+        if (newConnectionCallback_) {
+            state_ = State::CONNECTED;
+            socket_.setFd(-1); // 移交fd的管理权，避免一个fd调用两次close
+            newConnectionCallback_(sockfd, addr_);
             return;
         }
-        if (res == -1 && errno == EINPROGRESS) {
-            state_ = State::CONNECTING;
-            channel_->enableWriting();
-            return;
-        }
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            ++attempt;
-            std::this_thread::sleep_for(std::chrono::milliseconds(retryIntervalMillis_));
-            ::close(sockfd);
-            continue;
-        }
 
-        // 其他错误
-        LOG_ERROR("connect failed: {}", strerror(errno));
+        LOG_WARN("the connect callback is not set yet, will close new client by default");
+        return;
+    }
+    if (res == -1 && errno == EINPROGRESS) {
+        state_ = State::CONNECTING;
+        channel_->enableWriting();
+        return;
     }
 
-    LOG_ERROR("failed to connect to server");
+    // 其他错误
+    retry();
+    LOG_ERROR("attempt to connect failed, try #{}", attemptToConnect_);
 }
 
-void detail::Connector::stop() const {
+void detail::Connector::stop() {
     channel_->disableAll();
     ::close(socket_.getFd());
+    socket_.setFd(-1);
 }
 
 void detail::Connector::setRetryInterval(uint32_t retryIntervalMillis) {
@@ -71,27 +68,49 @@ void detail::Connector::setNewConnectionCallback(NewConnectionCallback newConnec
     newConnectionCallback_ = std::move(newConnectionCallback);
 }
 
+void detail::Connector::initSocket() const {
+    socket_.setTcpNoDelay(true); // TODO: 测试有没有这个选项，延迟多大
+    socket_.setKeepAlive(true);
+}
+
 void detail::Connector::handleWrite() {
+    if (state_ != State::CONNECTING) {
+        return;
+    }
+
     int error = 0;
     socklen_t len = sizeof(error);
     const int sockfd = socket_.getFd();
-
     if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
         LOG_ERROR("getsockopt failed: {}", strerror(errno));
         return;
     }
 
     if (error) {
-        LOG_ERROR("getsockopt failed: {}", error);
+        LOG_ERROR("error: {}", error);
+        retry();
         return;
     }
 
-    state_ = State::CONNECTED;
     channel_->disableAll();
     if (newConnectionCallback_) {
+        state_ = State::CONNECTED;
+        socket_.setFd(-1); // 移交fd的管理权，避免一个fd调用两次close
         newConnectionCallback_(sockfd, addr_);
         return;
     }
 
     LOG_WARN("the connect callback is not set yet, will close new client by default");
+}
+
+void detail::Connector::retry() {
+    if (++attemptToConnect_ < MAX_RETRIES) {
+        loop_->runAfter([this] {
+            start();
+        }, std::chrono::milliseconds(retryIntervalMillis_));
+
+        return;
+    }
+
+    LOG_ERROR("failed to connect to server");
 }

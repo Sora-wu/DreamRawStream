@@ -7,11 +7,13 @@
 
 #include <DreamNet/eventLoop.h>
 #include <common/concurrentQueue.hpp>
+#include <tcp/timerQueue.h>
 
 #include <atomic>
 #include <memory>
 #include <thread>
 #include <vector>
+#include <chrono>
 
 namespace Dream::detail {
     class Channel;
@@ -30,8 +32,10 @@ namespace Dream::detail {
         void quit();
 
         void wakeup() const;
-        void runInLoop(Dream::EventLoop::Functor func);
-        void queueInLoop(Dream::EventLoop::Functor func);
+        void runInLoop(Functor func);
+        void runAfter(Functor func, std::chrono::milliseconds delay);
+        void runAfter(Functor func, std::chrono::seconds delay);
+        void queueInLoop(Functor func);
 
         [[nodiscard]] std::thread::id getThreadId() const;
         [[nodiscard]] bool isInLoopThread() const;
@@ -56,6 +60,8 @@ namespace Dream::detail {
         std::atomic_bool isQuit_ = false;
 
         std::atomic_bool callingPendingFunctors_ = false;
-        ConcurrentQueue<Dream::EventLoop::Functor> pendingFunctors_;
+        ConcurrentQueue<Functor> pendingFunctors_;
+
+        TimerQueue timerQueue_;
     };
 }

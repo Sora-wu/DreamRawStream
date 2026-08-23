@@ -20,7 +20,8 @@ using namespace Dream::detail;
 
 EventLoopImpl::EventLoopImpl() :
     evtFD_(eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC)),
-    threadId_(std::this_thread::get_id()) {
+    threadId_(std::this_thread::get_id()),
+    timerQueue_(this) {
     if (evtFD_ < 0) {
         LOG_FATAL("eventfd error: {}", strerror(errno));
     }
@@ -60,7 +61,7 @@ void EventLoopImpl::wakeup() const {
     }
 }
 
-void EventLoopImpl::runInLoop(EventLoop::Functor func) {
+void EventLoopImpl::runInLoop(Functor func) {
     if (isInLoopThread()) {
         func();
         return;
@@ -69,7 +70,19 @@ void EventLoopImpl::runInLoop(EventLoop::Functor func) {
     queueInLoop(func);
 }
 
-void EventLoopImpl::queueInLoop(EventLoop::Functor func) {
+void EventLoopImpl::runAfter(Functor func, std::chrono::milliseconds delay) {
+    runInLoop([&] {
+        timerQueue_.addTimer(func, delay);
+    });
+}
+
+void EventLoopImpl::runAfter(Functor func, std::chrono::seconds delay) {
+    runInLoop([&] {
+        timerQueue_.addTimer(func, delay);
+    });
+}
+
+void EventLoopImpl::queueInLoop(Functor func) {
     pendingFunctors_.push(std::move(func));
 
     if (!isInLoopThread() || callingPendingFunctors_) {
@@ -99,7 +112,7 @@ uint32_t EventLoopImpl::getLoad() const {
 }
 
 void EventLoopImpl::processPendingFunctors() {
-    std::deque<EventLoop::Functor> tmp;
+    std::deque<Functor> tmp;
 
     callingPendingFunctors_ = true;
     pendingFunctors_.pop_all(tmp);

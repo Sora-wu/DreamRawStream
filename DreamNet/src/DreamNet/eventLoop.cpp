@@ -36,6 +36,14 @@ void EventLoop::runInLoop(Functor func) const {
     impl_->runInLoop(std::move(func));
 }
 
+void EventLoop::runAfter(Functor func, std::chrono::milliseconds delay) const {
+    impl_->runAfter(std::move(func), delay);
+}
+
+void EventLoop::runAfter(Functor func, std::chrono::seconds delay) const {
+    impl_->runAfter(std::move(func), delay);
+}
+
 void EventLoop::queueInLoop(Functor func) const {
     impl_->queueInLoop(std::move(func));
 }

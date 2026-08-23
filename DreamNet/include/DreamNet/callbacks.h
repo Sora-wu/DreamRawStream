@@ -16,4 +16,6 @@ namespace Dream {
     using CloseCallback = std::function<void(TcpConnection*)>;
     using HighWaterMarkCallback = std::function<void(TcpConnection*)>;
     using WriteCompleteCallback = std::function<void(TcpConnection*)>;
+
+    using Functor = std::function<void()>;
 }

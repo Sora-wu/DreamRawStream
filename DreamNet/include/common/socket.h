@@ -12,7 +12,6 @@ namespace Dream::detail {
     public:
         Socket() = default;
         explicit Socket(int type);
-
         ~Socket();
 
         void setFd(int fd) {

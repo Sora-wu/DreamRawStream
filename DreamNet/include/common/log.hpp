@@ -12,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <cstdlib>
+#include <cstring>
 
 class Logger {
 public:
