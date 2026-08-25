@@ -20,8 +20,7 @@ using namespace Dream::detail;
 
 EventLoopImpl::EventLoopImpl() :
     evtFD_(eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC)),
-    threadId_(std::this_thread::get_id()),
-    timerQueue_(this) {
+    threadId_(std::this_thread::get_id()) {
     if (evtFD_ < 0) {
         LOG_FATAL("eventfd error: {}", strerror(errno));
     }
@@ -33,6 +32,8 @@ EventLoopImpl::EventLoopImpl() :
     }
     wakeupChannel_->enableReading(); // 设置可读标志后并设置到epoll
     wakeupChannel_->setOnReadEvent([this] { onWakeUp(); });
+
+    timerQueue_ = std::make_unique<TimerQueue>(this);
 }
 
 void EventLoopImpl::loop() {
@@ -70,16 +71,12 @@ void EventLoopImpl::runInLoop(Functor func) {
     queueInLoop(func);
 }
 
-void EventLoopImpl::runAfter(Functor func, std::chrono::milliseconds delay) {
-    runInLoop([&] {
-        timerQueue_.addTimer(func, delay);
-    });
+uint64_t EventLoopImpl::runAfter(Functor func, std::chrono::milliseconds delay) const {
+    return timerQueue_->addTimer(std::move(func), delay);
 }
 
-void EventLoopImpl::runAfter(Functor func, std::chrono::seconds delay) {
-    runInLoop([&] {
-        timerQueue_.addTimer(func, delay);
-    });
+uint64_t EventLoopImpl::runAfter(Functor func, std::chrono::seconds delay) const {
+    return timerQueue_->addTimer(std::move(func), delay);
 }
 
 void EventLoopImpl::queueInLoop(Functor func) {

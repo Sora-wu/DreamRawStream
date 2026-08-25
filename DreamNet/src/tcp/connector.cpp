@@ -29,12 +29,14 @@ detail::Connector::Connector(EventLoopImpl* loop, const Address& addr) :
 }
 
 void detail::Connector::start() {
+    attemptToConnect_ = 0;
     const int sockfd = socket_.getFd();
 
     int res = socket_.connect(addr_);
     if (res == 0) {
         if (newConnectionCallback_) {
             state_ = State::CONNECTED;
+            attemptToConnect_ = 0;
             socket_.setFd(-1); // 移交fd的管理权，避免一个fd调用两次close
             newConnectionCallback_(sockfd, addr_);
             return;
@@ -51,7 +53,6 @@ void detail::Connector::start() {
 
     // 其他错误
     retry();
-    LOG_ERROR("attempt to connect failed, try #{}", attemptToConnect_);
 }
 
 void detail::Connector::stop() {
@@ -83,6 +84,7 @@ void detail::Connector::handleWrite() {
     const int sockfd = socket_.getFd();
     if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
         LOG_ERROR("getsockopt failed: {}", strerror(errno));
+        retry();
         return;
     }
 
@@ -95,6 +97,7 @@ void detail::Connector::handleWrite() {
     channel_->disableAll();
     if (newConnectionCallback_) {
         state_ = State::CONNECTED;
+        attemptToConnect_ = 0;
         socket_.setFd(-1); // 移交fd的管理权，避免一个fd调用两次close
         newConnectionCallback_(sockfd, addr_);
         return;
@@ -104,7 +107,17 @@ void detail::Connector::handleWrite() {
 }
 
 void detail::Connector::retry() {
+    channel_->disableAll();
+    ::close(socket_.getFd());
+    socket_.setFd(-1);
+    state_ = State::DISCONNECTED;
+
     if (++attemptToConnect_ < MAX_RETRIES) {
+        LOG_ERROR("attempt to connect failed, try #{}", attemptToConnect_);
+        socket_ = Socket(SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK);
+        channel_ = std::make_unique<Channel>(loop_, socket_.getFd());
+        channel_->setOnWriteEvent([this] { handleWrite(); });
+
         loop_->runAfter([this] {
             start();
         }, std::chrono::milliseconds(retryIntervalMillis_));

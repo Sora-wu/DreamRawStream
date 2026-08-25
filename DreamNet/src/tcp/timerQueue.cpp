@@ -5,6 +5,7 @@
 
 #include <tcp/timerQueue.h>
 #include <common/log.hpp>
+#include <tcp/eventLoopImpl.h>
 
 #include <unistd.h>
 #include <sys/timerfd.h>
@@ -20,6 +21,36 @@ namespace {
         ts.tv_sec  = static_cast<time_t>(ns.count() / 1'000'000'000LL);
         ts.tv_nsec = static_cast<long>(ns.count() % 1'000'000'000LL);
         return ts;
+    }
+
+    template <typename Period>
+    Timer createTimer(Dream::Functor callback, Period delay, Period interval, uint64_t id) {
+        TimePoint now = std::chrono::steady_clock::now();
+        Timer timer{};
+        timer.id = id;
+        timer.expire = now + delay;
+        timer.interval = interval;
+        timer.delay = delay;
+        timer.callback = std::move(callback);
+
+        return timer;
+    }
+}
+
+TimerQueue::TimerQueue(EventLoopImpl* loop) : loop_(loop) {
+    tfd_ = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+    if (tfd_ < 0) {
+        LOG_ERROR("error, timerfd_create failed: {}", std::strerror(errno));
+        return;
+    }
+    timerChannel_ = std::make_unique<Channel>(loop_, tfd_);
+    timerChannel_->setOnReadEvent([this] { handleRead(); });
+    timerChannel_->enableReading();
+}
+
+TimerQueue::~TimerQueue() {
+    if (tfd_ >= 0) {
+        ::close(tfd_);
     }
 }
 
@@ -47,27 +78,47 @@ void TimerQueue::handleRead() {
         t.callback();
 
         if (t.interval.count() > 0) {
-            t.expire = now + t.interval;
-            registerTimer(t);
+            t.expire += t.interval;
+            timers_.insert(std::move(t));
         }
     }
+
+    armTimer();
 }
 
-void TimerQueue::resetTimerEvent() {
-    timerChannel_.reset();
-}
-
-void TimerQueue::registerTimer(const Timer& timer) {
-    itimerspec its{};
-    its.it_value = toTimespec(timer.delay);
-    its.it_interval = toTimespec(timer.interval);
-    tfd_ = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
-    if (tfd_ < 0) {
-        LOG_ERROR("error, timerfd_create failed: {}", std::strerror(errno));
+void TimerQueue::armTimer() const {
+    if (timers_.empty()) {
+        itimerspec its{};
+        timerfd_settime(tfd_, 0, &its, nullptr);
         return;
     }
-    timerChannel_ = std::make_unique<Channel>(loop_, tfd_);
-    timerChannel_->setOnReadEvent([this] {
-        handleRead();
+
+    auto delta = timers_.begin()->expire - std::chrono::steady_clock::now();
+    if (delta < std::chrono::microseconds(100)) {
+        delta = std::chrono::microseconds(100);
+    }
+
+    itimerspec its{};
+    its.it_value = toTimespec(delta);
+    timerfd_settime(tfd_, 0, &its, nullptr);
+}
+
+uint64_t TimerQueue::addTimerPri(Functor callback, std::chrono::milliseconds delay, std::chrono::milliseconds interval) {
+    Timer timer = std::move(createTimer(std::move(callback), delay, interval, currentID_++));
+    loop_->runInLoop([this, timer = std::move(timer)]() mutable {
+        timers_.insert(timer);
+        armTimer();
     });
+
+    return timer.id;
+}
+
+uint64_t TimerQueue::addTimerPri(Functor callback, std::chrono::seconds delay, std::chrono::seconds interval) {
+    Timer timer = std::move(createTimer(std::move(callback), delay, interval, currentID_++));
+    loop_->runInLoop([this, timer = std::move(timer)]() mutable {
+        timers_.insert(timer);
+        armTimer();
+    });
+
+    return timer.id;
 }

@@ -11,9 +11,9 @@
 #include <cstdint>
 #include <chrono>
 #include <set>
+#include <atomic>
 
 namespace Dream::detail {
-    class EventLoopImpl;
     class Channel;
 
     using TimePoint = std::chrono::steady_clock::time_point;
@@ -25,13 +25,17 @@ namespace Dream::detail {
         Functor callback = nullptr;
 
         bool operator<(const Timer& other) const {
-            return expire < other.expire;
+            if (expire != other.expire) {
+                return expire < other.expire;
+            }
+            return id < other.id;                           // 兜底
         }
     };
 
     class TimerQueue {
     public:
-        explicit TimerQueue(EventLoopImpl* loop) : loop_(loop) {}
+        explicit TimerQueue(EventLoopImpl* loop);
+        ~TimerQueue();
         TimerQueue(const TimerQueue&) = delete;
         TimerQueue& operator=(const TimerQueue&) = delete;
 
@@ -40,35 +44,17 @@ namespace Dream::detail {
 
     private:
         void handleRead();
-        void resetTimerEvent();
-        void registerTimer(const Timer& timer);
+        void armTimer() const;
 
-        template <typename Period>
-        uint64_t addTimerPri(Functor callback, Period delay, Period interval);
+        uint64_t addTimerPri(Functor callback, std::chrono::milliseconds delay, std::chrono::milliseconds interval);
+        uint64_t addTimerPri(Functor callback, std::chrono::seconds delay, std::chrono::seconds interval);
 
     private:
         EventLoopImpl* loop_ = nullptr;
-        uint64_t currentID_ = 0;
+        std::atomic<uint64_t> currentID_ = 0;
         int tfd_ = -1;
         std::unique_ptr<Channel> timerChannel_;
 
         std::multiset<Timer> timers_;
     };
-
-    template <typename Period>
-    uint64_t TimerQueue::addTimerPri(Functor callback, Period delay, Period interval) {
-        TimePoint now = std::chrono::steady_clock::now();
-        Timer timer{};
-        timer.id = currentID_++;
-        timer.expire = now + delay;
-        timer.interval = interval;
-        timer.delay = delay;
-        timer.callback = std::move(callback);
-        timers_.insert(timer);
-
-        resetTimerEvent();
-        registerTimer(*timers_.begin());
-
-        return timer.id;
-    }
 }

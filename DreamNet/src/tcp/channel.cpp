@@ -11,7 +11,6 @@ using namespace Dream::detail;
 Channel::Channel(EventLoopImpl* loop, int fd) : loopImpl_(loop), fd_(fd) {}
 
 Channel::~Channel() {
-    disableAll();
     fd_ = -1;
 }
 

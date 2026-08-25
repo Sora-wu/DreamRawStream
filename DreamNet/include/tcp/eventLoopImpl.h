@@ -33,8 +33,8 @@ namespace Dream::detail {
 
         void wakeup() const;
         void runInLoop(Functor func);
-        void runAfter(Functor func, std::chrono::milliseconds delay);
-        void runAfter(Functor func, std::chrono::seconds delay);
+        uint64_t runAfter(Functor func, std::chrono::milliseconds delay) const;
+        uint64_t runAfter(Functor func, std::chrono::seconds delay) const;
         void queueInLoop(Functor func);
 
         [[nodiscard]] std::thread::id getThreadId() const;
@@ -62,6 +62,6 @@ namespace Dream::detail {
         std::atomic_bool callingPendingFunctors_ = false;
         ConcurrentQueue<Functor> pendingFunctors_;
 
-        TimerQueue timerQueue_;
+        std::unique_ptr<TimerQueue> timerQueue_;
     };
 }

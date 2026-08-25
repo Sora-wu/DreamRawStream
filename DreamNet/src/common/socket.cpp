@@ -18,6 +18,19 @@ Socket::Socket(int type) {
     }
 }
 
+Socket::Socket(Socket&& socket) noexcept {
+    ::close(fd_);
+    fd_ = socket.fd_;
+    socket.fd_ = -1;
+}
+
+Socket& Socket::operator=(Socket&& socket) noexcept {
+    ::close(fd_);
+    fd_ = socket.fd_;
+    socket.fd_ = -1;
+    return *this;
+}
+
 Socket::~Socket() {
     if (fd_ >= 0) {
         close(fd_);

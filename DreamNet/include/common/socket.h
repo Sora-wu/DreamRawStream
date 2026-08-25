@@ -12,6 +12,9 @@ namespace Dream::detail {
     public:
         Socket() = default;
         explicit Socket(int type);
+        Socket(const Socket& socket) = delete;
+        Socket(Socket&& socket) noexcept;
+        Socket& operator=(Socket&& socket) noexcept;
         ~Socket();
 
         void setFd(int fd) {
