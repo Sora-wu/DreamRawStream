@@ -19,7 +19,6 @@ Socket::Socket(int type) {
 }
 
 Socket::Socket(Socket&& socket) noexcept {
-    ::close(fd_);
     fd_ = socket.fd_;
     socket.fd_ = -1;
 }
@@ -33,7 +32,7 @@ Socket& Socket::operator=(Socket&& socket) noexcept {
 
 Socket::~Socket() {
     if (fd_ >= 0) {
-        close(fd_);
+        ::close(fd_);
         fd_ = -1;
     }
 }
@@ -71,6 +70,13 @@ int Socket::accept(Address& peerAddress) {
 void Socket::shutdown() const {
     if (::shutdown(fd_, SHUT_RDWR) < 0) {
         LOG_ERROR("shutdown error");
+    }
+}
+
+void Socket::close() {
+    if (fd_ >= 0) {
+        ::close(fd_);
+        fd_ = -1;
     }
 }
 

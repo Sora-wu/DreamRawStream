@@ -98,6 +98,8 @@ void TcpConnectionImpl::shutdown(std::shared_ptr<const TcpConnection> self) {
         state_ = ConnectionState::DISCONNECTED;
         loop_->runInLoop([this, self = std::move(self)] {
             (void)self;
+            // 因为手动关闭，所以去掉CloseEvent，避免重连
+            channel_->setOnCloseEvent(nullptr);
             if (!channel_->isWriting()) {
                 socket_.shutdown();
             }
@@ -176,7 +178,8 @@ void TcpConnectionImpl::handleRead() {
 
     inBuffer_.write(std::span(buff, n));
     if (messageCallback_) {
-        messageCallback_(conn_, inBuffer_);
+        const uint32_t consume = messageCallback_(conn_, inBuffer_);
+        inBuffer_.consume(consume);
     }
 }
 
@@ -219,7 +222,7 @@ void TcpConnectionImpl::handleClose() {
     }
 }
 
-void TcpConnectionImpl::handleError() const {
+void TcpConnectionImpl::handleError() {
     if (state_ == ConnectionState::DISCONNECTED) {
         return;
     }
@@ -232,4 +235,5 @@ void TcpConnectionImpl::handleError() const {
     }
 
     LOG_ERROR("client error: SO_ERROR-{}", optval);
+    handleClose();
 }

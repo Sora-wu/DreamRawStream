@@ -20,7 +20,6 @@ namespace Dream {
     class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
     public:
         TcpConnection(EventLoop* loop, const std::string& name, int fd, const Address& localAddress, const Address& remoteAddress);
-        ~TcpConnection();
         TcpConnection(const TcpConnection&) = delete;
         TcpConnection& operator=(const TcpConnection&) = delete;
 

@@ -13,8 +13,6 @@ TcpConnection::TcpConnection(EventLoop* loop, const std::string& name, int fd, c
     impl_(std::make_unique<detail::TcpConnectionImpl>(this, detail::EventLoopImpl::from(loop), name, fd, localAddress, remoteAddress)),
     loop_(loop) {}
 
-TcpConnection::~TcpConnection() = default;
-
 EventLoop* TcpConnection::getLoop() const {
     return loop_;
 }

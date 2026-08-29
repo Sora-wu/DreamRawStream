@@ -6,6 +6,8 @@
 #include <tcp/channel.h>
 #include <tcp/eventLoopImpl.h>
 
+#include "common/log.hpp"
+
 using namespace Dream::detail;
 
 Channel::Channel(EventLoopImpl* loop, int fd) : loopImpl_(loop), fd_(fd) {}

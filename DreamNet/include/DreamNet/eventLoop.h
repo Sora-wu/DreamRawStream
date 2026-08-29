@@ -27,6 +27,7 @@ namespace Dream {
         void runInLoop(Functor func) const;
         void runAfter(Functor func, std::chrono::milliseconds delay) const;
         void runAfter(Functor func, std::chrono::seconds delay) const;
+        void cancelAfter(uint64_t tid) const;
         void queueInLoop(Functor func) const;
 
         [[nodiscard]] std::thread::id getThreadId() const;

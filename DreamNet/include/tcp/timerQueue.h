@@ -41,6 +41,7 @@ namespace Dream::detail {
 
         uint64_t addTimer(Functor callback, std::chrono::milliseconds delay, std::chrono::milliseconds interval = {});
         uint64_t addTimer(Functor callback, std::chrono::seconds delay, std::chrono::seconds interval = {});
+        void removeTimer(uint64_t id);
 
     private:
         void handleRead();

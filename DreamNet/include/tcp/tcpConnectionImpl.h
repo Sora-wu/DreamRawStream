@@ -24,7 +24,6 @@ namespace Dream::detail {
     public:
         TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, const std::string& name, int fd,
                             const Address& localAddress, const Address& remoteAddress);
-        ~TcpConnectionImpl() = default;
 
         [[nodiscard]] Address getLocalAddress() const;
         [[nodiscard]] Address getRemoteAddress() const;
@@ -50,7 +49,7 @@ namespace Dream::detail {
         void handleRead();
         void handleWrite();
         void handleClose();
-        void handleError() const;
+        void handleError();
 
     private:
         // 非拥有

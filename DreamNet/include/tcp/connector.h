@@ -27,7 +27,10 @@ namespace Dream::detail {
     private:
         void initSocket() const;
         void handleWrite();
+        void handleClose();
+        void handleError();
         void retry();
+        void reset();
 
     private:
         EventLoopImpl* loop_ = nullptr;
@@ -35,8 +38,9 @@ namespace Dream::detail {
         Socket socket_;
         std::unique_ptr<Channel> channel_;
         NewConnectionCallback newConnectionCallback_ = nullptr;
-        uint32_t retryIntervalMillis_ = 100;
-        uint32_t attemptToConnect_ = 0;
+        uint32_t retryIntervalMillis_ = 500;
+        uint64_t attemptToConnect_ = 0;
+        uint64_t tid_ = 0;
 
         enum class State {
             DISCONNECTED,

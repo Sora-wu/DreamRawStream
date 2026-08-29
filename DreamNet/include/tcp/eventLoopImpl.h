@@ -35,6 +35,7 @@ namespace Dream::detail {
         void runInLoop(Functor func);
         uint64_t runAfter(Functor func, std::chrono::milliseconds delay) const;
         uint64_t runAfter(Functor func, std::chrono::seconds delay) const;
+        void cancelAfter(uint64_t tid) const;
         void queueInLoop(Functor func);
 
         [[nodiscard]] std::thread::id getThreadId() const;

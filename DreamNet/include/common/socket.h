@@ -30,6 +30,7 @@ namespace Dream::detail {
         [[nodiscard]] int connect(const Address& address) const;
         [[nodiscard]] int accept(Address& peerAddress);
         void shutdown() const;
+        void close();
 
         void setTcpNoDelay(bool on) const;
         void setReUseAddr(bool on) const;

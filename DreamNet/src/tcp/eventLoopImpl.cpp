@@ -79,6 +79,10 @@ uint64_t EventLoopImpl::runAfter(Functor func, std::chrono::seconds delay) const
     return timerQueue_->addTimer(std::move(func), delay);
 }
 
+void EventLoopImpl::cancelAfter(uint64_t tid) const {
+    timerQueue_->removeTimer(tid);
+}
+
 void EventLoopImpl::queueInLoop(Functor func) {
     pendingFunctors_.push(std::move(func));
 

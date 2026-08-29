@@ -15,30 +15,23 @@
 using namespace Dream;
 
 namespace {
-    constexpr uint32_t MAX_RETRIES = 5;
+    constexpr uint64_t MAX_RETRY_INTERVAL = 30000;
 }
 
 detail::Connector::Connector(EventLoopImpl* loop, const Address& addr) :
     loop_(loop),
-    addr_(addr),
-    socket_(SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK),
-    channel_(std::make_unique<Channel>(loop, socket_.getFd())) {
-    channel_->setOnWriteEvent([this] { handleWrite(); });
-
-    initSocket();
-}
+    addr_(addr) {}
 
 void detail::Connector::start() {
-    attemptToConnect_ = 0;
-    const int sockfd = socket_.getFd();
+    reset();
 
     int res = socket_.connect(addr_);
     if (res == 0) {
         if (newConnectionCallback_) {
             state_ = State::CONNECTED;
             attemptToConnect_ = 0;
+            newConnectionCallback_(socket_.getFd(), addr_);
             socket_.setFd(-1); // 移交fd的管理权，避免一个fd调用两次close
-            newConnectionCallback_(sockfd, addr_);
             return;
         }
 
@@ -59,6 +52,7 @@ void detail::Connector::stop() {
     channel_->disableAll();
     ::close(socket_.getFd());
     socket_.setFd(-1);
+    loop_->cancelAfter(tid_);
 }
 
 void detail::Connector::setRetryInterval(uint32_t retryIntervalMillis) {
@@ -106,24 +100,34 @@ void detail::Connector::handleWrite() {
     LOG_WARN("the connect callback is not set yet, will close new client by default");
 }
 
+void detail::Connector::handleClose() {
+    LOG_ERROR("connect failed! will try again");
+    retry();
+}
+
+void detail::Connector::handleError() {
+    LOG_ERROR("connect failed! will try again");
+    retry();
+}
+
 void detail::Connector::retry() {
     channel_->disableAll();
     ::close(socket_.getFd());
     socket_.setFd(-1);
     state_ = State::DISCONNECTED;
 
-    if (++attemptToConnect_ < MAX_RETRIES) {
-        LOG_ERROR("attempt to connect failed, try #{}", attemptToConnect_);
-        socket_ = Socket(SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK);
-        channel_ = std::make_unique<Channel>(loop_, socket_.getFd());
-        channel_->setOnWriteEvent([this] { handleWrite(); });
+    LOG_ERROR("attempt to connect failed, try #{}", attemptToConnect_);
+    tid_ = loop_->runAfter([this] {
+        start();
+    }, std::chrono::milliseconds(std::min(retryIntervalMillis_ * ++attemptToConnect_, MAX_RETRY_INTERVAL)));
+}
 
-        loop_->runAfter([this] {
-            start();
-        }, std::chrono::milliseconds(retryIntervalMillis_));
-
-        return;
-    }
-
-    LOG_ERROR("failed to connect to server");
+void detail::Connector::reset() {
+    socket_ = Socket(SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK);
+    const int sockfd = socket_.getFd();
+    channel_ = std::make_unique<Channel>(loop_, sockfd);
+    channel_->setOnWriteEvent([this] { handleWrite(); });
+    channel_->setOnCloseEvent([this] { handleClose(); });
+    channel_->setOnErrorEvent([this] { handleError(); });
+    initSocket();
 }

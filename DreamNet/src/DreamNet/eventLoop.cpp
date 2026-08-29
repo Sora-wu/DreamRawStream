@@ -7,7 +7,6 @@
 #include <tcp/eventLoopImpl.h>
 #include <tcp/channel.h>
 #include <tcp/poller.h>
-#include <common/define.h>
 
 using namespace Dream;
 
@@ -42,6 +41,10 @@ void EventLoop::runAfter(Functor func, std::chrono::milliseconds delay) const {
 
 void EventLoop::runAfter(Functor func, std::chrono::seconds delay) const {
     impl_->runAfter(std::move(func), delay);
+}
+
+void EventLoop::cancelAfter(uint64_t tid) const {
+    impl_->cancelAfter(tid);
 }
 
 void EventLoop::queueInLoop(Functor func) const {

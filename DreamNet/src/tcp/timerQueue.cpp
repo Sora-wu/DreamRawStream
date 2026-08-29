@@ -62,6 +62,22 @@ uint64_t TimerQueue::addTimer(Functor callback, std::chrono::seconds delay, std:
     return addTimerPri(std::move(callback), delay, interval);
 }
 
+void TimerQueue::removeTimer(uint64_t id) {
+    bool isRemoved = false;
+    for (auto it = timers_.begin(); it != timers_.end(); /**/) {
+        if (it->id == id) {
+            it = timers_.erase(it);
+            isRemoved = true;
+        } else {
+            ++it;
+        }
+    }
+
+    if (isRemoved) {
+        armTimer();
+    }
+}
+
 void TimerQueue::handleRead() {
     uint64_t exp = 0;
     const ssize_t n = read(tfd_, &exp, 8);

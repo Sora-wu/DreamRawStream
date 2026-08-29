@@ -6,8 +6,8 @@
 #include <tcp/tcpClientImpl.h>
 #include <tcp/connector.h>
 #include <tcp/eventLoopImpl.h>
-#include <tcp/channel.h>
 #include <DreamNet/tcpConnection.h>
+#include <tcp/tcpConnectionImpl.h>
 #include <DreamNet/eventLoop.h>
 #include <common/log.hpp>
 
@@ -34,6 +34,7 @@ void detail::TcpClientImpl::disconnect() {
     if (connection_) {
         connection_->shutdown();
         connection_.reset();
+        connector_.reset();
         return;
     }
 
@@ -108,15 +109,21 @@ void detail::TcpClientImpl::onNewConnection(int fd, const Address& peerAddr) {
 }
 
 void detail::TcpClientImpl::onConnectionClose(TcpConnection* connection) {
-    connection->getLoop()->runInLoop([connection] {
-        connection->connectDestroyed();
+    connection->getLoop()->runInLoop([conn = connection->shared_from_this()] {
+        conn->connectDestroyed();
     });
 
-    loop_->runInLoop([connection, this] {
-        std::string name = connection->getName();
-        const Address& addr = connection->getRemoteAddress();
+    loop_->runInLoop([conn = connection->shared_from_this(), this] {
+        std::string name = conn->getName();
+        const Address& addr = conn->getRemoteAddress();
         LOG_INFO("connection closed, connection name: {}, {}:{}", name, addr.getIP(), addr.getPort());
 
         connection_.reset();
+
+        // 如果是手动disconnect，那么不需要重连
+        if (connector_) {
+            // 若服务端主动关闭，启动重启流程
+            connector_->start();
+        }
     });
 }

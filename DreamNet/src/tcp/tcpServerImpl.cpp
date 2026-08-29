@@ -7,6 +7,7 @@
 #include <tcp/eventLoopImpl.h>
 #include <tcp/acceptor.h>
 #include <tcp/channel.h>
+#include <tcp/tcpConnectionImpl.h>
 #include <tcp/threadPool.h>
 #include <DreamNet/eventLoop.h>
 #include <DreamNet/tcpConnection.h>
