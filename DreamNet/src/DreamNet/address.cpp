@@ -4,6 +4,7 @@
 //
 
 #include <DreamNet/address.h>
+#include <common/log.hpp>
 
 #include <arpa/inet.h>
 
@@ -12,7 +13,9 @@ using namespace Dream;
 Address::Address(uint16_t port, const std::string& ip) {
     addr_.sin_family = AF_INET;
     addr_.sin_port = htons(port);
-    addr_.sin_addr.s_addr = inet_addr(ip.c_str());
+    if (inet_pton(AF_INET, ip.c_str(), &addr_.sin_addr) != 1) {
+        LOG_FATAL("inet_pton failed, IP: {}", ip);
+    }
 }
 
 std::string Address::getIP() const {

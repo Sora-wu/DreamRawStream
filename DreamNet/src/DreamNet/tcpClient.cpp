@@ -55,3 +55,7 @@ void TcpClient::setMessageCallback(MessageCallback cb) const {
 void TcpClient::setWriteCompleteCallback(WriteCompleteCallback cb) const {
     impl_->setWriteCompleteCallback(cb);
 }
+
+void TcpClient::setHighWaterMarkCallback(HighWaterMarkCallback cb) const {
+    impl_->setHighWaterMarkCallback(cb);
+}

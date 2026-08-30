@@ -30,6 +30,7 @@ namespace Dream {
         void setConnectionCallback(ConnectionCallback cb) const;
         void setMessageCallback(MessageCallback cb) const;
         void setWriteCompleteCallback(WriteCompleteCallback cb) const;
+        void setHighWaterMarkCallback(HighWaterMarkCallback cb) const;
 
     private:
         detail::TcpClientImpl* impl_ = nullptr;

@@ -15,7 +15,7 @@ using namespace Dream::detail;
 
 namespace {
     constexpr uint32_t BUFFER_SIZE = 1024 * 64;
-    constexpr uint32_t HIGH_WATER_MARK_SIZE = 1024 * 1024;         // 1M
+    constexpr uint32_t HIGH_WATER_MARK_SIZE = 1024 * 1024 * 8;         // 8M
 }
 
 TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, const std::string& name, int fd,
@@ -149,11 +149,15 @@ void TcpConnectionImpl::sendInLoop(Buffer& buffer) {
     }
 
     if (buffer.readableSize() > 0) {
-        if (outBuffer_.readableSize() < HIGH_WATER_MARK_SIZE && outBuffer_.readableSize() + buffer.readableSize() >= HIGH_WATER_MARK_SIZE
-            && highWaterMarkCallback_) {
+        if (outBuffer_.readableSize() < HIGH_WATER_MARK_SIZE && outBuffer_.readableSize() + buffer.readableSize() >= HIGH_WATER_MARK_SIZE) {
             // 触发高水位预警
             LOG_WARN("trigger highWaterMark!");
-            highWaterMarkCallback_(conn_->shared_from_this());
+            TcpConnectionPtr conn = conn_->shared_from_this();
+            if (highWaterMarkCallback_) {
+                highWaterMarkCallback_(conn);
+            }
+            shutdown(conn);
+            return;
         }
 
         outBuffer_.append(buffer);
@@ -184,6 +188,14 @@ void TcpConnectionImpl::handleRead() {
     if (messageCallback_) {
         const uint32_t consume = messageCallback_(conn_->shared_from_this(), inBuffer_);
         inBuffer_.consume(consume);
+
+        if (inBuffer_.readableSize() > HIGH_WATER_MARK_SIZE) {
+            TcpConnectionPtr conn = conn_->shared_from_this();
+            if (highWaterMarkCallback_) {
+                highWaterMarkCallback_(conn);
+            }
+            shutdown(conn);
+        }
     }
 }
 

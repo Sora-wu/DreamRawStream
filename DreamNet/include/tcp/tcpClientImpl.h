@@ -24,12 +24,13 @@ namespace Dream {
             void disconnect();
             void setRetryInterval(uint32_t retryInterval) const;
             void send(const Buffer& buffer) const;
-            void send(const std::span<char>& buffer) const;
+            void send(const std::span<char>& data) const;
             void send(const char* data, uint32_t size) const;
 
             void setConnectionCallback(ConnectionCallback cb);
             void setMessageCallback(MessageCallback cb);
             void setWriteCompleteCallback(WriteCompleteCallback cb);
+            void setHighWaterMarkCallback(HighWaterMarkCallback cb);
 
         private:
             void onNewConnection(int fd, const Address& peerAddr);
@@ -44,6 +45,7 @@ namespace Dream {
             ConnectionCallback connectionCallback_ = nullptr;
             MessageCallback messageCallback_ = nullptr;
             WriteCompleteCallback writeCompleteCallback_ = nullptr;
+            HighWaterMarkCallback highWaterMarkCallback_ = nullptr;
         };
     }
 }

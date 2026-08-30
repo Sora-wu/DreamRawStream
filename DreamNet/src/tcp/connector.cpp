@@ -23,11 +23,6 @@ detail::Connector::Connector(EventLoopImpl* loop, const Address& addr) :
     addr_(addr) {}
 
 void detail::Connector::start() {
-    if (state_ == State::CONNECTED) {
-        LOG_WARN("connection has been started");
-        return;
-    }
-
     reset();
 
     int res = socket_.connect(addr_);
@@ -54,6 +49,11 @@ void detail::Connector::start() {
 }
 
 void detail::Connector::stop() {
+    if (!channel_) {
+        return;
+    }
+
+    state_ = State::DISCONNECTED;
     channel_->disableAll();
     ::close(socket_.getFd());
     socket_.setFd(-1);
