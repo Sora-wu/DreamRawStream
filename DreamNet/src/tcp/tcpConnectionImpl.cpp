@@ -9,6 +9,8 @@
 
 #include <unistd.h>
 
+#include "DreamNet/tcpConnection.h"
+
 using namespace Dream::detail;
 
 namespace {
@@ -43,6 +45,7 @@ std::string TcpConnectionImpl::getName() const {
 void TcpConnectionImpl::connectEstablished() {
     state_ = ConnectionState::CONNECTED;
 
+    channel_->tie(conn_->shared_from_this());
     channel_->setOnReadEvent([this] { handleRead(); });
     channel_->setOnWriteEvent([this] { handleWrite(); });
     channel_->setOnCloseEvent([this] { handleClose(); });
@@ -50,15 +53,13 @@ void TcpConnectionImpl::connectEstablished() {
     channel_->enableReading();
 
     if (connectionCallback_) {
-        connectionCallback_(conn_);
+        connectionCallback_(conn_->shared_from_this());
     }
 }
 
 void TcpConnectionImpl::connectDestroyed() {
-    if (state_ == ConnectionState::CONNECTED) {
-        state_ = ConnectionState::DISCONNECTED;
-        channel_->disableReading();
-    }
+    state_ = ConnectionState::DISCONNECTED;
+    channel_->disableAll();
 }
 
 bool TcpConnectionImpl::isConnected() const {
@@ -95,13 +96,14 @@ void TcpConnectionImpl::send(const char* data, size_t size, std::shared_ptr<cons
 
 void TcpConnectionImpl::shutdown(std::shared_ptr<const TcpConnection> self) {
     if (state_ == ConnectionState::CONNECTED) {
-        state_ = ConnectionState::DISCONNECTED;
+        state_ = ConnectionState::DISCONNECTING;
         loop_->runInLoop([this, self = std::move(self)] {
             (void)self;
-            // 因为手动关闭，所以去掉CloseEvent，避免重连
-            channel_->setOnCloseEvent(nullptr);
             if (!channel_->isWriting()) {
                 socket_.shutdown();
+            }
+            else {
+                shutdownAfterWrite_ = true;
             }
         });
     }
@@ -150,8 +152,8 @@ void TcpConnectionImpl::sendInLoop(Buffer& buffer) {
         if (outBuffer_.readableSize() < HIGH_WATER_MARK_SIZE && outBuffer_.readableSize() + buffer.readableSize() >= HIGH_WATER_MARK_SIZE
             && highWaterMarkCallback_) {
             // 触发高水位预警
-            highWaterMarkCallback_(conn_);
-            return;
+            LOG_WARN("trigger highWaterMark!");
+            highWaterMarkCallback_(conn_->shared_from_this());
         }
 
         outBuffer_.append(buffer);
@@ -172,13 +174,15 @@ void TcpConnectionImpl::handleRead() {
         return;
     }
     if (n < 0) {
-        handleError();
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            handleError();
+        }
         return;
     }
 
     inBuffer_.write(std::span(buff, n));
     if (messageCallback_) {
-        const uint32_t consume = messageCallback_(conn_, inBuffer_);
+        const uint32_t consume = messageCallback_(conn_->shared_from_this(), inBuffer_);
         inBuffer_.consume(consume);
     }
 }
@@ -203,7 +207,12 @@ void TcpConnectionImpl::handleWrite() {
     outBuffer_.consume(n);
     if (outBuffer_.readableSize() == 0) {
         if (writeCompleteCallback_) {
-            writeCompleteCallback_(conn_);
+            writeCompleteCallback_(conn_->shared_from_this());
+        }
+
+        if (shutdownAfterWrite_) {
+            shutdownAfterWrite_ = false;
+            socket_.shutdown();
         }
         channel_->disableWriting();
     }
@@ -214,11 +223,11 @@ void TcpConnectionImpl::handleClose() {
         return;
     }
 
-    LOG_INFO("client closed connection");
+    LOG_INFO("peer closed connection");
     state_ = ConnectionState::DISCONNECTED;
 
     if (closeCallback_) {
-        closeCallback_(conn_);
+        closeCallback_(conn_->shared_from_this());
     }
 }
 

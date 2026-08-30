@@ -17,7 +17,9 @@ namespace Dream::detail {
 
     class TcpConnectionImpl {
         enum class ConnectionState {
+            DISCONNECTING,
             DISCONNECTED,
+            CONNECTING,
             CONNECTED,
         };
 
@@ -65,6 +67,7 @@ namespace Dream::detail {
         std::unique_ptr<Channel> channel_;
         Buffer inBuffer_;
         Buffer outBuffer_;
+        bool shutdownAfterWrite_ = false;
 
         ConnectionCallback connectionCallback_ = nullptr;
         MessageCallback messageCallback_ = nullptr;

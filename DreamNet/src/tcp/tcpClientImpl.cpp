@@ -23,22 +23,26 @@ detail::TcpClientImpl::TcpClientImpl(EventLoop* loop, const Address& addr) :
     });
 }
 
-void detail::TcpClientImpl::connect() const {
+void detail::TcpClientImpl::connect() {
     loop_->runInLoop([this] {
+        if ()
+
+        manualDisconnect_ = false;
         connector_->start();
     });
 }
 
 void detail::TcpClientImpl::disconnect() {
-    // 如果已经连接上，断开connection_即可
-    if (connection_) {
-        connection_->shutdown();
-        connection_.reset();
-        connector_.reset();
-        return;
-    }
+    loop_->runInLoop([this] {
+        // 如果已经连接上，断开connection_即可
+        if (connection_) {
+            manualDisconnect_ = true;
+            connection_->shutdown();
+            return;
+        }
 
-    connector_->stop();
+        connector_->stop();
+    });
 }
 
 void detail::TcpClientImpl::setRetryInterval(uint32_t retryInterval) const {
@@ -46,30 +50,33 @@ void detail::TcpClientImpl::setRetryInterval(uint32_t retryInterval) const {
 }
 
 void detail::TcpClientImpl::send(const Buffer& buffer) const {
-    if (!connection_) {
-        LOG_ERROR("not connected, drop: {}", buffer.getView());
-        return;
-    }
-
-    connection_->send(buffer);
+    loop_->runInLoop([this, buffer = std::move(buffer)] {
+        if (!connection_) {
+            LOG_ERROR("not connected, drop: {}", buffer.getView());
+            return;
+        }
+        connection_->send(buffer);
+    });
 }
 
 void detail::TcpClientImpl::send(const std::span<char>& buffer) const {
-    if (!connection_) {
-        LOG_ERROR("not connected, drop: {}", std::string_view(buffer.data(), buffer.size()));
-        return;
-    }
-
-    connection_->send(buffer);
+    loop_->runInLoop([this, buffer = std::move(buffer)] {
+        if (!connection_) {
+            LOG_ERROR("not connected, drop: {}", std::string_view(buffer.data(), buffer.size()));
+            return;
+        }
+        connection_->send(buffer);
+    });
 }
 
 void detail::TcpClientImpl::send(const char* data, uint32_t size) const {
-    if (!connection_) {
-        LOG_ERROR("not connected, drop: {}", std::string_view(data, size));
-        return;
-    }
-
-    connection_->send(data, size);
+    loop_->runInLoop([this, data, size] {
+        if (!connection_) {
+            LOG_ERROR("not connected, drop: {}", std::string_view(data, size));
+            return;
+        }
+        connection_->send(data, size);
+    });
 }
 
 void detail::TcpClientImpl::setConnectionCallback(ConnectionCallback cb) {
@@ -101,27 +108,27 @@ void detail::TcpClientImpl::onNewConnection(int fd, const Address& peerAddr) {
     connection_->setConnectionCallback(connectionCallback_);
     connection_->setMessageCallback(messageCallback_);
     connection_->setWriteCompleteCallback(writeCompleteCallback_);
-    connection_->setCloseCallback([this](TcpConnection* connection) { onConnectionClose(connection); });
+    connection_->setCloseCallback([this](TcpConnectionPtr connection) { onConnectionClose(connection); });
 
     loop_->runInLoop([this] {
         connection_->connectEstablished();
     });
 }
 
-void detail::TcpClientImpl::onConnectionClose(TcpConnection* connection) {
-    connection->getLoop()->runInLoop([conn = connection->shared_from_this()] {
-        conn->connectDestroyed();
+void detail::TcpClientImpl::onConnectionClose(TcpConnectionPtr connection) {
+    connection->getLoop()->runInLoop([connection] {
+        connection->connectDestroyed();
     });
 
-    loop_->runInLoop([conn = connection->shared_from_this(), this] {
-        std::string name = conn->getName();
-        const Address& addr = conn->getRemoteAddress();
+    loop_->runInLoop([connection, this] {
+        std::string name = connection->getName();
+        const Address& addr = connection->getRemoteAddress();
         LOG_INFO("connection closed, connection name: {}, {}:{}", name, addr.getIP(), addr.getPort());
 
         connection_.reset();
 
         // 如果是手动disconnect，那么不需要重连
-        if (connector_) {
+        if (connector_ && !manualDisconnect_) {
             // 若服务端主动关闭，启动重启流程
             connector_->start();
         }

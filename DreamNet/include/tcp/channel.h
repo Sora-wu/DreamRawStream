@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 
 namespace Dream::detail {
     class EventLoopImpl;
@@ -45,6 +46,8 @@ namespace Dream::detail {
         [[nodiscard]] uint32_t getListenEvent() const;
         void update();
 
+        void tie(const std::shared_ptr<void>& obj);
+
         void setActualEvent(uint32_t event);
 
         void setOnReadEvent(Functor func);
@@ -53,6 +56,9 @@ namespace Dream::detail {
         void setOnErrorEvent(Functor func);
 
         void handleEvent() const;
+
+    private:
+        void handleEventWithGuard() const;
 
     private:
         EventLoopImpl* loopImpl_ = nullptr;
@@ -66,5 +72,9 @@ namespace Dream::detail {
         Functor onWriteEvent_;
         Functor onCloseEvent_;
         Functor onErrorEvent_;
+
+        // share保活引用+1，避免connection突然释放
+        std::weak_ptr<void> tie_;
+        bool isTied_ = false;
     };
 }

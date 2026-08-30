@@ -68,7 +68,7 @@ int Socket::accept(Address& peerAddress) {
 }
 
 void Socket::shutdown() const {
-    if (::shutdown(fd_, SHUT_RDWR) < 0) {
+    if (::shutdown(fd_, SHUT_WR) < 0) {
         LOG_ERROR("shutdown error");
     }
 }

@@ -23,6 +23,11 @@ detail::Connector::Connector(EventLoopImpl* loop, const Address& addr) :
     addr_(addr) {}
 
 void detail::Connector::start() {
+    if (state_ == State::CONNECTED) {
+        LOG_WARN("connection has been started");
+        return;
+    }
+
     reset();
 
     int res = socket_.connect(addr_);

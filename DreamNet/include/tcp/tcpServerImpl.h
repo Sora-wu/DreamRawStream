@@ -44,7 +44,7 @@ namespace Dream {
 
         private:
             void onNewConnection(int fd, const Address& addr);
-            void onConnectionClose(TcpConnection* connection);
+            void onConnectionClose(TcpConnectionPtr connection);
 
         private:
             EventLoop* loop_ = nullptr;

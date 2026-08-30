@@ -27,7 +27,7 @@ detail::TcpServerImpl::TcpServerImpl(EventLoop* loop, const Address& addr) :
     });
 
     // 高水位回调默认关闭对方连接
-    highWaterMarkCallback_ = [this](TcpConnection* conn) {
+    highWaterMarkCallback_ = [this](TcpConnectionPtr conn) {
         onConnectionClose(conn);
     };
 }
@@ -127,7 +127,7 @@ void detail::TcpServerImpl::onNewConnection(int fd, const Address& peerAddr) {
     connection->setConnectionCallback(connectionCallback_);
     connection->setMessageCallback(messageCallback_);
     connection->setHighWaterMarkCallback(highWaterMarkCallback_);
-    connection->setCloseCallback([this](TcpConnection* conn) { onConnectionClose(conn); });
+    connection->setCloseCallback([this](TcpConnectionPtr conn) { onConnectionClose(conn); });
     {
         std::unique_lock lock(smutx_);
         connections_[connName] = connection;
@@ -138,7 +138,7 @@ void detail::TcpServerImpl::onNewConnection(int fd, const Address& peerAddr) {
     });
 }
 
-void detail::TcpServerImpl::onConnectionClose(TcpConnection* connection) {
+void detail::TcpServerImpl::onConnectionClose(TcpConnectionPtr connection) {
     connection->getLoop()->runInLoop([connection] {
         connection->connectDestroyed();
     });

@@ -12,7 +12,6 @@
 
 namespace Dream {
     class EventLoop;
-    using TcpConnectionPtr = std::shared_ptr<TcpConnection>;
 
     namespace detail {
         class Connector;
@@ -21,7 +20,7 @@ namespace Dream {
         public:
             TcpClientImpl(EventLoop* loop, const Address& addr);
 
-            void connect() const;
+            void connect();
             void disconnect();
             void setRetryInterval(uint32_t retryInterval) const;
             void send(const Buffer& buffer) const;
@@ -34,12 +33,13 @@ namespace Dream {
 
         private:
             void onNewConnection(int fd, const Address& peerAddr);
-            void onConnectionClose(TcpConnection* connection);
+            void onConnectionClose(TcpConnectionPtr connection);
 
         private:
             EventLoop* loop_ = nullptr;
             std::unique_ptr<Connector> connector_;
             TcpConnectionPtr connection_;
+            bool manualDisconnect_ = false;
 
             ConnectionCallback connectionCallback_ = nullptr;
             MessageCallback messageCallback_ = nullptr;

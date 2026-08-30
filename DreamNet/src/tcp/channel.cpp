@@ -6,8 +6,6 @@
 #include <tcp/channel.h>
 #include <tcp/eventLoopImpl.h>
 
-#include "common/log.hpp"
-
 using namespace Dream::detail;
 
 Channel::Channel(EventLoopImpl* loop, int fd) : loopImpl_(loop), fd_(fd) {}
@@ -73,6 +71,11 @@ void Channel::update() {
     loopImpl_->updateChannel(this);
 }
 
+void Channel::tie(const std::shared_ptr<void>& obj) {
+    tie_ = obj;
+    isTied_ = true;
+}
+
 void Channel::setActualEvent(uint32_t event) {
     actualEvent_ = event;
 }
@@ -94,6 +97,18 @@ void Channel::setOnErrorEvent(Functor func) {
 }
 
 void Channel::handleEvent() const {
+    if (isTied_) {
+        std::shared_ptr<void> guard = tie_.lock();
+        if (guard) {
+            handleEventWithGuard();
+        }
+        return;
+    }
+
+    handleEventWithGuard();
+}
+
+void Channel::handleEventWithGuard() const {
     if ((actualEvent_ & EVENT_HUP) && !(actualEvent_ & EVENT_READ)) {
         if (onCloseEvent_) {
             onCloseEvent_();
