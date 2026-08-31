@@ -38,6 +38,7 @@ namespace Dream::detail {
         void send(const std::span<char>& buffer, std::shared_ptr<const TcpConnection> self);
         void send(const char* data, size_t size, std::shared_ptr<const TcpConnection> self);
         void shutdown(std::shared_ptr<const TcpConnection> self);
+        void close(std::shared_ptr<const TcpConnection> self);
 
         void setConnectionCallback(ConnectionCallback cb);
         void setMessageCallback(MessageCallback cb);

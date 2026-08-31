@@ -7,6 +7,7 @@
 
 #include <DreamNet/callbacks.h>
 #include <DreamNet/address.h>
+#include <memory>
 
 namespace Dream {
     class EventLoop;
@@ -18,7 +19,6 @@ namespace Dream {
     class TcpClient {
     public:
         TcpClient(EventLoop* loop, const Address& address);
-        ~TcpClient();
 
         void connect() const;
         void disconnect() const;
@@ -33,6 +33,6 @@ namespace Dream {
         void setHighWaterMarkCallback(HighWaterMarkCallback cb) const;
 
     private:
-        detail::TcpClientImpl* impl_ = nullptr;
+        std::shared_ptr<detail::TcpClientImpl> impl_ = nullptr;
     };
 }

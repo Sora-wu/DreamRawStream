@@ -23,6 +23,11 @@ detail::Connector::Connector(EventLoopImpl* loop, const Address& addr) :
     addr_(addr) {}
 
 void detail::Connector::start() {
+    // 避免重复调用
+    if (state_ == State::CONNECTING) {
+        return;
+    }
+
     reset();
 
     int res = socket_.connect(addr_);
@@ -32,6 +37,7 @@ void detail::Connector::start() {
             attemptToConnect_ = 0;
             newConnectionCallback_(socket_.getFd(), addr_);
             socket_.setFd(-1); // 移交fd的管理权，避免一个fd调用两次close
+            channel_.reset();
             return;
         }
 
@@ -61,7 +67,12 @@ void detail::Connector::stop() {
 }
 
 void detail::Connector::setRetryInterval(uint32_t retryIntervalMillis) {
-    retryIntervalMillis_ = retryIntervalMillis;
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, retryIntervalMillis] {
+        if (auto self = weakSelf.lock()) {
+            self->retryIntervalMillis_ = retryIntervalMillis;
+        }
+    });
 }
 
 void detail::Connector::setNewConnectionCallback(NewConnectionCallback newConnectionCallback) {
@@ -98,6 +109,7 @@ void detail::Connector::handleWrite() {
         state_ = State::CONNECTED;
         attemptToConnect_ = 0;
         socket_.setFd(-1); // 移交fd的管理权，避免一个fd调用两次close
+        channel_.reset();
         newConnectionCallback_(sockfd, addr_);
         return;
     }
@@ -122,8 +134,11 @@ void detail::Connector::retry() {
     state_ = State::DISCONNECTED;
 
     LOG_ERROR("attempt to connect failed, try #{}", attemptToConnect_);
-    tid_ = loop_->runAfter([this] {
-        start();
+    std::weak_ptr weakSelf = shared_from_this();
+    tid_ = loop_->runAfter([weakSelf] {
+        if (auto self = weakSelf.lock()) {
+            self->start();
+        }
     }, std::chrono::milliseconds(std::min(retryIntervalMillis_ * ++attemptToConnect_, MAX_RETRY_INTERVAL)));
 }
 
@@ -131,8 +146,25 @@ void detail::Connector::reset() {
     socket_ = Socket(SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK);
     const int sockfd = socket_.getFd();
     channel_ = std::make_unique<Channel>(loop_, sockfd);
-    channel_->setOnWriteEvent([this] { handleWrite(); });
-    channel_->setOnCloseEvent([this] { handleClose(); });
-    channel_->setOnErrorEvent([this] { handleError(); });
+
+    std::weak_ptr weakSelf = shared_from_this();
+    channel_->setOnWriteEvent([weakSelf] {
+        if (auto self = weakSelf.lock()) {
+            self->handleWrite();
+        }
+    });
+
+    channel_->setOnCloseEvent([weakSelf] {
+        if (auto self = weakSelf.lock()) {
+            self->handleClose();
+        }
+    });
+
+    channel_->setOnErrorEvent([weakSelf] {
+        if (auto self = weakSelf.lock()) {
+            self->handleError();
+        }
+    });
+
     initSocket();
 }

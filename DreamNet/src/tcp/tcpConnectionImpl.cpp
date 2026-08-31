@@ -15,7 +15,7 @@ using namespace Dream::detail;
 
 namespace {
     constexpr uint32_t BUFFER_SIZE = 1024 * 64;
-    constexpr uint32_t HIGH_WATER_MARK_SIZE = 1024 * 1024 * 8;         // 8M
+    constexpr uint32_t HIGH_WATER_MARK_SIZE = 1024 * 1024 * 8; // 8M
 }
 
 TcpConnectionImpl::TcpConnectionImpl(TcpConnection* conn, EventLoopImpl* loop, const std::string& name, int fd,
@@ -95,18 +95,28 @@ void TcpConnectionImpl::send(const char* data, size_t size, std::shared_ptr<cons
 }
 
 void TcpConnectionImpl::shutdown(std::shared_ptr<const TcpConnection> self) {
-    if (state_ == ConnectionState::CONNECTED) {
-        state_ = ConnectionState::DISCONNECTING;
-        loop_->runInLoop([this, self = std::move(self)] {
-            (void)self;
+    loop_->runInLoop([this, self = std::move(self)] {
+        (void)self;
+        if (state_ == ConnectionState::CONNECTED) {
+            state_ = ConnectionState::DISCONNECTING;
             if (!channel_->isWriting()) {
                 socket_.shutdown();
             }
             else {
                 shutdownAfterWrite_ = true;
             }
-        });
-    }
+        }
+    });
+}
+
+void TcpConnectionImpl::close(std::shared_ptr<const TcpConnection> self) {
+    loop_->runInLoop([this, self = std::move(self)] {
+        (void)self;
+        if (state_ == ConnectionState::CONNECTED) {
+            state_ = ConnectionState::DISCONNECTING;
+            socket_.close();
+        }
+    });
 }
 
 void TcpConnectionImpl::setConnectionCallback(ConnectionCallback cb) {
@@ -149,7 +159,8 @@ void TcpConnectionImpl::sendInLoop(Buffer& buffer) {
     }
 
     if (buffer.readableSize() > 0) {
-        if (outBuffer_.readableSize() < HIGH_WATER_MARK_SIZE && outBuffer_.readableSize() + buffer.readableSize() >= HIGH_WATER_MARK_SIZE) {
+        if (outBuffer_.readableSize() < HIGH_WATER_MARK_SIZE && outBuffer_.readableSize() + buffer.readableSize() >=
+            HIGH_WATER_MARK_SIZE) {
             // 触发高水位预警
             LOG_WARN("trigger highWaterMark!");
             TcpConnectionPtr conn = conn_->shared_from_this();
@@ -194,7 +205,7 @@ void TcpConnectionImpl::handleRead() {
             if (highWaterMarkCallback_) {
                 highWaterMarkCallback_(conn);
             }
-            shutdown(conn);
+            close(conn_->shared_from_this());
         }
     }
 }

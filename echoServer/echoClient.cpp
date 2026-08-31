@@ -42,7 +42,6 @@ private:
     uint32_t onMessage(Dream::TcpConnectionPtr conn, Dream::Buffer& buffer) {
         std::string_view msg = buffer.getView();
         std::print("recv: {}", msg);
-        client_.disconnect();
         return msg.size();
     }
 

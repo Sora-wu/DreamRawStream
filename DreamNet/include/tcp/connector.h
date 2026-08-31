@@ -14,7 +14,7 @@ namespace Dream::detail {
     class EventLoopImpl;
     class Channel;
 
-    class Connector {
+    class Connector : public std::enable_shared_from_this<Connector> {
     public:
         using NewConnectionCallback = std::function<void(int fd, const Address& address)>;
         Connector(EventLoopImpl* loop, const Address& addr);

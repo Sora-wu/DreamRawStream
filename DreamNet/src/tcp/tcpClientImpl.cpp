@@ -18,32 +18,52 @@ using namespace Dream;
 
 detail::TcpClientImpl::TcpClientImpl(EventLoop* loop, const Address& addr) :
     loop_(loop),
-    connector_(std::make_unique<Connector>(EventLoopImpl::from(loop), addr)) {
-    connector_->setNewConnectionCallback([this](int fd, const Address& addr) { onNewConnection(fd, addr); });
+    connector_(std::make_shared<Connector>(EventLoopImpl::from(loop), addr)) {
+    connector_->setNewConnectionCallback([this](int fd, const Address& addr) {
+        onNewConnection(fd, addr);
+    });
 }
 
 void detail::TcpClientImpl::connect() {
-    loop_->runInLoop([this] {
-        if (connection_) {
-            LOG_WARN("connection has been started");
-            return;
-        }
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf] {
+        if (auto self = weakSelf.lock()) {
+            if (self->connection_) {
+                LOG_WARN("connection has been started");
+                return;
+            }
 
-        manualDisconnect_ = false;
-        connector_->start();
+            self->manualDisconnect_ = false;
+            self->connector_->start();
+        }
     });
 }
 
 void detail::TcpClientImpl::disconnect() {
-    loop_->runInLoop([this] {
-        // 如果已经连接上，断开connection_即可
-        if (connection_) {
-            manualDisconnect_ = true;
-            connection_->shutdown();
-            return;
-        }
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf] {
+        if (auto self = weakSelf.lock()) {
+            // 如果已经连接上，断开connection_即可
+            if (self->connection_) {
+                self->manualDisconnect_ = true;
+                self->connection_->shutdown();
+                return;
+            }
 
-        connector_->stop();
+            self->connector_->stop();
+        }
+    });
+}
+
+void detail::TcpClientImpl::close() {
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf] {
+        if (auto self = weakSelf.lock()) {
+            self->manualDisconnect_ = true;
+            self->connection_->close();
+            self->connection_.reset();
+            self->connector_->stop();
+        }
     });
 }
 
@@ -52,12 +72,15 @@ void detail::TcpClientImpl::setRetryInterval(uint32_t retryInterval) const {
 }
 
 void detail::TcpClientImpl::send(const Buffer& buffer) const {
-    loop_->runInLoop([this, buffer = std::move(buffer)] {
-        if (!connection_) {
-            LOG_ERROR("not connected, drop: {}", buffer.getView());
-            return;
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, buffer = std::move(buffer)] {
+        if (auto self = weakSelf.lock()) {
+            if (!self->connection_) {
+                LOG_ERROR("not connected, drop: {}", buffer.getView());
+                return;
+            }
+            self->connection_->send(buffer);
         }
-        connection_->send(buffer);
     });
 }
 
@@ -65,12 +88,15 @@ void detail::TcpClientImpl::send(const std::span<char>& data) const {
     Buffer buffer;
     buffer.write(data);
 
-    loop_->runInLoop([this, buffer = std::move(buffer)] {
-        if (!connection_) {
-            LOG_ERROR("not connected, drop: {}", buffer.getView());
-            return;
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, buffer = std::move(buffer)] {
+        if (auto self = weakSelf.lock()) {
+            if (!self->connection_) {
+                LOG_ERROR("not connected, drop: {}", buffer.getView());
+                return;
+            }
+            self->connection_->send(buffer);
         }
-        connection_->send(buffer);
     });
 }
 
@@ -81,36 +107,51 @@ void detail::TcpClientImpl::send(const char* data, uint32_t size) const {
 
     Buffer buffer;
     buffer.write(std::span(data, size));
-    loop_->runInLoop([this, buffer = std::move(buffer)] {
-        if (!connection_) {
-            LOG_ERROR("not connected, drop: {}", buffer.getView());
-            return;
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, buffer = std::move(buffer)] {
+        if (auto self = weakSelf.lock()) {
+            if (!self->connection_) {
+                LOG_ERROR("not connected, drop: {}", buffer.getView());
+                return;
+            }
+            self->connection_->send(buffer);
         }
-        connection_->send(buffer);
     });
 }
 
 void detail::TcpClientImpl::setConnectionCallback(ConnectionCallback cb) {
-    loop_->runInLoop([this, cb = std::move(cb)] {
-        connectionCallback_ = std::move(cb);
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, cb = std::move(cb)] {
+        if (auto self = weakSelf.lock()) {
+            self->connectionCallback_ = std::move(cb);
+        }
     });
 }
 
 void detail::TcpClientImpl::setMessageCallback(MessageCallback cb) {
-    loop_->runInLoop([this, cb = std::move(cb)] {
-        messageCallback_ = std::move(cb);
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, cb = std::move(cb)] {
+        if (auto self = weakSelf.lock()) {
+            self->messageCallback_ = std::move(cb);
+        }
     });
 }
 
 void detail::TcpClientImpl::setWriteCompleteCallback(WriteCompleteCallback cb) {
-    loop_->runInLoop([this, cb = std::move(cb)] {
-        writeCompleteCallback_ = std::move(cb);
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, cb = std::move(cb)] {
+        if (auto self = weakSelf.lock()) {
+            self->writeCompleteCallback_ = std::move(cb);
+        }
     });
 }
 
 void detail::TcpClientImpl::setHighWaterMarkCallback(HighWaterMarkCallback cb) {
-    loop_->runInLoop([this, cb = std::move(cb)] {
-        highWaterMarkCallback_ = std::move(cb);
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, cb = std::move(cb)] {
+        if (auto self = weakSelf.lock()) {
+            self->highWaterMarkCallback_ = std::move(cb);
+        }
     });
 }
 
@@ -132,10 +173,17 @@ void detail::TcpClientImpl::onNewConnection(int fd, const Address& peerAddr) {
     connection_->setConnectionCallback(connectionCallback_);
     connection_->setMessageCallback(messageCallback_);
     connection_->setWriteCompleteCallback(writeCompleteCallback_);
-    connection_->setCloseCallback([this](TcpConnectionPtr connection) { onConnectionClose(connection); });
+    std::weak_ptr weakSelf = shared_from_this();
+    connection_->setCloseCallback([weakSelf](TcpConnectionPtr connection) {
+        if (auto self = weakSelf.lock()) {
+            self->onConnectionClose(connection);
+        }
+    });
 
-    loop_->runInLoop([this] {
-        connection_->connectEstablished();
+    loop_->runInLoop([weakSelf] {
+        if (auto self = weakSelf.lock()) {
+            self->connection_->connectEstablished();
+        }
     });
 }
 
@@ -144,17 +192,20 @@ void detail::TcpClientImpl::onConnectionClose(TcpConnectionPtr connection) {
         connection->connectDestroyed();
     });
 
-    loop_->runInLoop([connection, this] {
-        std::string name = connection->getName();
-        const Address& addr = connection->getRemoteAddress();
-        LOG_INFO("connection closed, connection name: {}, {}:{}", name, addr.getIP(), addr.getPort());
+    std::weak_ptr weakSelf = shared_from_this();
+    loop_->runInLoop([weakSelf, connection] {
+        if (auto self = weakSelf.lock()) {
+            std::string name = connection->getName();
+            const Address& addr = connection->getRemoteAddress();
+            LOG_INFO("connection closed, connection name: {}, {}:{}", name, addr.getIP(), addr.getPort());
 
-        connection_.reset();
+            self->connection_.reset();
 
-        // 如果是手动disconnect，那么不需要重连
-        if (connector_ && !manualDisconnect_) {
-            // 若服务端主动关闭，启动重启流程
-            connector_->start();
+            // 如果是手动disconnect，那么不需要重连
+            if (self->connector_ && !self->manualDisconnect_) {
+                // 若服务端主动关闭，启动重启流程
+                self->connector_->start();
+            }
         }
     });
 }

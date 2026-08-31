@@ -35,6 +35,7 @@ namespace Dream {
         void send(const std::span<char>& buffer) const;
         void send(const char* data, size_t size) const;
         void shutdown() const;
+        void close() const;
 
         void setConnectionCallback(ConnectionCallback cb) const;
         void setMessageCallback(MessageCallback cb) const;

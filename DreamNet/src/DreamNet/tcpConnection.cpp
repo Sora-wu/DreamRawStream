@@ -60,6 +60,10 @@ void TcpConnection::shutdown() const {
     impl_->shutdown(shared_from_this());
 }
 
+void TcpConnection::close() const {
+    impl_->close(shared_from_this());
+}
+
 void TcpConnection::setConnectionCallback(ConnectionCallback cb) const {
     impl_->setConnectionCallback(std::move(cb));
 }

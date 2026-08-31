@@ -16,12 +16,13 @@ namespace Dream {
     namespace detail {
         class Connector;
 
-        class TcpClientImpl {
+        class TcpClientImpl : public std::enable_shared_from_this<TcpClientImpl> {
         public:
             TcpClientImpl(EventLoop* loop, const Address& addr);
 
             void connect();
             void disconnect();
+            void close();
             void setRetryInterval(uint32_t retryInterval) const;
             void send(const Buffer& buffer) const;
             void send(const std::span<char>& data) const;
@@ -38,7 +39,7 @@ namespace Dream {
 
         private:
             EventLoop* loop_ = nullptr;
-            std::unique_ptr<Connector> connector_;
+            std::shared_ptr<Connector> connector_;
             TcpConnectionPtr connection_;
             bool manualDisconnect_ = false;
 
