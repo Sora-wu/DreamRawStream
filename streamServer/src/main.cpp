@@ -16,7 +16,7 @@
 using namespace Dream;
 
 namespace {
-    constexpr uint32_t THREAD_COUNT = 16;
+    constexpr uint32_t THREAD_COUNT = 1;
 
     void blockShutdownSignals(sigset_t& set) {
         sigemptyset(&set);
