@@ -98,8 +98,10 @@ void StreamServer::run(std::stop_token st) {
         header.type = (uint8_t)frame.type;
         header.size = frame.buffer.size;
         header.pts = frame.pts;
-        server_->sendBroadcast((char*)&frame, sizeof(frame));
-        server_->sendBroadcast(frame.buffer.data, frame.buffer.size);
+        Buffer buffer;
+        buffer.write(std::span((char*)&header, sizeof(header)));
+        buffer.write(std::span(frame.buffer.data, frame.buffer.size));
+        server_->sendBroadcast(buffer);
     }
 }
 

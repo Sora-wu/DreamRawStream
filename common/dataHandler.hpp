@@ -9,14 +9,15 @@ class DataHandler {
 public:
     virtual ~DataHandler() = default;
 
+    void setNextHandler(DataHandler* handler) {
+        nextHandler_ = handler;
+    }
+
+protected:
     virtual void handle(void* data) {
         if (nextHandler_) {
             nextHandler_->handle(data);
         }
-    }
-
-    void setNextHandler(DataHandler* handler) {
-        nextHandler_ = handler;
     }
 
 private:

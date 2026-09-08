@@ -62,7 +62,8 @@ struct PooledBuffer {
     MemoryPool* pool = nullptr;
     char* data = nullptr;
     uint32_t size = 0;
-    
+
+    PooledBuffer() = default;
     PooledBuffer(MemoryPool* p, char* d, uint32_t s) : pool(p), data(d), size(s) {}
     PooledBuffer(PooledBuffer&& o) noexcept
         : pool(o.pool), data(o.data), size(o.size) {
