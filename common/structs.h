@@ -9,8 +9,8 @@
 #include <memoryPool.hpp>
 
 enum class FrameType {
-    Video,
-    Audio,
+    VIDEO,
+    AUDIO,
 };
 
 struct Frame {

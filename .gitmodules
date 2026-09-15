@@ -1,3 +1,6 @@
 [submodule "DreamNet"]
 	path = third/src/DreamNet
 	url = git@github.com:Sora-wu/DreamNet.git
+[submodule "third/src/ffmpeg"]
+	path = third/src/ffmpeg
+	url = git@github.com:FFmpeg/FFmpeg.git

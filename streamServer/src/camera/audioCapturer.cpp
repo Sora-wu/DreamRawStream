@@ -30,7 +30,7 @@ void AudioCapturer::run(std::stop_token st) {
                 char* buffer = pool_.allocate(encodeBuffer.size());
                 memcpy(buffer, encodeBuffer.data(), encodeBuffer.size());
                 PooledBuffer pooledBuffer{ &pool_, buffer, (uint32_t)encodeBuffer.size() };
-                Frame frame{ FrameType::Audio, std::move(pooledBuffer), currentPTS };
+                Frame frame{ FrameType::AUDIO, std::move(pooledBuffer), currentPTS };
                 handle(&frame);
             }
         }

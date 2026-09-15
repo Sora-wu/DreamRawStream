@@ -32,7 +32,7 @@ void CameraCapturer::run(std::stop_token st) {
                 char* buffer = pool_.allocate(encodeBuffer.size());
                 memcpy(buffer, encodeBuffer.data(), encodeBuffer.size());
                 PooledBuffer pooledBuffer{ &pool_, buffer, (uint32_t)encodeBuffer.size() };
-                Frame frame{ FrameType::Video, std::move(pooledBuffer), currentPTS };
+                Frame frame{ FrameType::VIDEO, std::move(pooledBuffer), currentPTS };
                 handle(&frame);
             }
         }

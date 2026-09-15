@@ -73,10 +73,10 @@ void StreamServer::handle(void* data) {
     Frame frame = std::move(*(Frame*)data);
 
     switch (frame.type) {
-    case FrameType::Video:
+    case FrameType::VIDEO:
         videoQue_.push(std::move(frame));
         break;
-    case FrameType::Audio:
+    case FrameType::AUDIO:
         audioQue_.push(std::move(frame));
         break;
     default:

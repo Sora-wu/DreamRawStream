@@ -15,6 +15,21 @@ class ConcurrentQueue {
 public:
     ConcurrentQueue() : maxSize_(std::numeric_limits<std::size_t>::max()) {}
     explicit  ConcurrentQueue(std::size_t maxSize) : maxSize_(maxSize ? maxSize : std::numeric_limits<std::size_t>::max()) {}
+    ConcurrentQueue(ConcurrentQueue&& other) noexcept {
+        std::lock_guard lock(other.mutex_);
+        queue_   = std::move(other.queue_);
+        maxSize_ = other.maxSize_;
+        closed_  = other.closed_;
+    }
+    ConcurrentQueue& operator=(ConcurrentQueue&& other) noexcept {
+        if (this != &other) {
+            std::scoped_lock lock(mutex_, other.mutex_);
+            queue_   = std::move(other.queue_);
+            maxSize_ = other.maxSize_;
+            closed_  = other.closed_;
+        }
+        return *this;
+    }
 
     [[nodiscard]] bool empty() const {
         std::lock_guard lock(mutex_);

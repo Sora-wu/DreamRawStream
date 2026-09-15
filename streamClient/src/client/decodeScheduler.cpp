@@ -4,10 +4,18 @@
 //
 
 #include <client/decodeScheduler.h>
+#include <decoder/videoDecoder.h>
+#include <decoder/audioDecoder.h>
+#include <decoder/IVideoSink.h>
+#include <decoder/IAudioSink.h>
 
 #include <algorithm>
 #include <client/structs.h>
 #include <cassert>
+
+namespace {
+    constexpr size_t MAX_FRAMES = 100;
+}
 
 DecodeScheduler::DecodeScheduler() {
     const uint32_t threadCountActually = std::clamp(std::thread::hardware_concurrency(), 2u, MAX_STREAM_COUNT);
@@ -19,10 +27,23 @@ DecodeScheduler::DecodeScheduler() {
             workerLoop(st);
         });
     }
+
+    for (uint32_t i = 0; i < MAX_STREAM_COUNT; ++i) {
+        ConcurrentQueue<DecodeFrame> que = ConcurrentQueue<DecodeFrame>(MAX_FRAMES);
+        streamsQues_.emplace_back(std::move(que));
+    }
 }
 
 DecodeScheduler::~DecodeScheduler() {
     stop();
+}
+
+void DecodeScheduler::setVideoSink(IVideoSink* sink) {
+    videoSink_ = sink;
+}
+
+void DecodeScheduler::setAudioSink(IAudioSink* sink) {
+    audioSink_ = sink;
 }
 
 void DecodeScheduler::stop() {
@@ -75,7 +96,24 @@ void DecodeScheduler::workerLoop(std::stop_token st) {
         }
 
         if (std::optional<DecodeFrame> headerOpt = streamsQues_[streamID].pop()) {
-            // TODO: decode
+            refreshDecoder(streamID);
+            DecodeFrame frame = std::move(*headerOpt);
+            if (frame.frame.type == FrameType::VIDEO) {
+                decoders_[streamID].videoDecoder->decode(frame.frame.buffer.data, frame.frame.buffer.size, frame.frame.pts,
+                    [this](const VideoFrame& videoFrame) {
+                        if (videoSink_) {
+                            videoSink_->onVideoFrame(videoFrame);
+                        }
+                    });
+            }
+            else if (frame.frame.type == FrameType::AUDIO) {
+                decoders_[streamID].audioDecoder->decode(frame.frame.buffer.data, frame.frame.buffer.size, frame.frame.pts,
+                    [this](const AudioFrame& audioFrame) {
+                        if (audioSink_) {
+                            audioSink_->onAudioFrame(audioFrame);
+                        }
+                    });
+            }
         }
 
         {
@@ -92,4 +130,14 @@ void DecodeScheduler::workerLoop(std::stop_token st) {
 
 bool DecodeScheduler::inReady(uint32_t streamID) const {
     return std::ranges::find(readyQue_, streamID) != readyQue_.end();
+}
+
+void DecodeScheduler::refreshDecoder(uint32_t streamID) {
+    if (!decoders_[streamID].videoDecoder) {
+        decoders_[streamID].videoDecoder = std::make_unique<VideoDecoder>();
+    }
+
+    if (!decoders_[streamID].audioDecoder) {
+        decoders_[streamID].audioDecoder = std::make_unique<AudioDecoder>();
+    }
 }
