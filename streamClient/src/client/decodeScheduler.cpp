@@ -8,9 +8,9 @@
 #include <decoder/audioDecoder.h>
 #include <decoder/IVideoSink.h>
 #include <decoder/IAudioSink.h>
+#include <client/structs.h>
 
 #include <algorithm>
-#include <client/structs.h>
 #include <cassert>
 
 namespace {
@@ -38,12 +38,16 @@ DecodeScheduler::~DecodeScheduler() {
     stop();
 }
 
-void DecodeScheduler::setVideoSink(IVideoSink* sink) {
-    videoSink_ = sink;
+void DecodeScheduler::setVideoSink(uint32_t streamID, IVideoSink* sink) {
+    if (streamID < MAX_STREAM_COUNT) {
+        videoSinks_[streamID] = std::move(sink);
+    }
 }
 
-void DecodeScheduler::setAudioSink(IAudioSink* sink) {
-    audioSink_ = sink;
+void DecodeScheduler::setAudioSink(uint32_t streamID, IAudioSink* sink) {
+    if (streamID < MAX_STREAM_COUNT) {
+        audioSinks_[streamID] = std::move(sink);
+    }
 }
 
 void DecodeScheduler::stop() {
@@ -96,21 +100,21 @@ void DecodeScheduler::workerLoop(std::stop_token st) {
         }
 
         if (std::optional<DecodeFrame> headerOpt = streamsQues_[streamID].pop()) {
-            refreshDecoder(streamID);
             DecodeFrame frame = std::move(*headerOpt);
+            refreshDecoder(streamID, frame.frame.type);
             if (frame.frame.type == FrameType::VIDEO) {
                 decoders_[streamID].videoDecoder->decode(frame.frame.buffer.data, frame.frame.buffer.size, frame.frame.pts,
-                    [this](const VideoFrame& videoFrame) {
-                        if (videoSink_) {
-                            videoSink_->onVideoFrame(videoFrame);
+                    [this, streamID](const VideoFrame& videoFrame) {
+                        if (videoSinks_[streamID]) {
+                            videoSinks_[streamID]->onVideoFrame(videoFrame);
                         }
                     });
             }
             else if (frame.frame.type == FrameType::AUDIO) {
                 decoders_[streamID].audioDecoder->decode(frame.frame.buffer.data, frame.frame.buffer.size, frame.frame.pts,
-                    [this](const AudioFrame& audioFrame) {
-                        if (audioSink_) {
-                            audioSink_->onAudioFrame(audioFrame);
+                    [this, streamID](const AudioFrame& audioFrame) {
+                        if (audioSinks_[streamID]) {
+                            audioSinks_[streamID]->onAudioFrame(audioFrame);
                         }
                     });
             }
@@ -132,12 +136,12 @@ bool DecodeScheduler::inReady(uint32_t streamID) const {
     return std::ranges::find(readyQue_, streamID) != readyQue_.end();
 }
 
-void DecodeScheduler::refreshDecoder(uint32_t streamID) {
-    if (!decoders_[streamID].videoDecoder) {
+void DecodeScheduler::refreshDecoder(uint32_t streamID, FrameType frameType) {
+    if (!decoders_[streamID].videoDecoder && frameType == FrameType::VIDEO) {
         decoders_[streamID].videoDecoder = std::make_unique<VideoDecoder>();
     }
 
-    if (!decoders_[streamID].audioDecoder) {
+    if (!decoders_[streamID].audioDecoder && frameType == FrameType::AUDIO) {
         decoders_[streamID].audioDecoder = std::make_unique<AudioDecoder>();
     }
 }

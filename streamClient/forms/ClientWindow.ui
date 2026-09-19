@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+    <class>ClientWindow</class>
+    <widget class="QWidget" name="ClientWindow">
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>1920</width>
+                <height>1080</height>
+            </rect>
+        </property>
+        <property name="windowTitle">
+            <string>StreamClient - 监控系统</string>
+        </property>
+        <property name="styleSheet">
+            <string>
+                /* 整体背景 */
+                QWidget#ClientWindow { background-color: #1A1A24; }
+
+                /* 左侧控制面板背景 */
+                QWidget#leftPanel {
+                background-color: #232332;
+                border-right: 1px solid #333344;
+                }
+
+                /* 文本标签样式 */
+                QLabel {
+                color: #E0E0E0;
+                font-family: "Microsoft YaHei";
+                font-size: 16px;
+                font-weight: bold;
+                }
+
+                /* 输入框样式 */
+                QLineEdit {
+                background-color: #14141D;
+                color: #00FFCC;
+                border: 1px solid #444455;
+                border-radius: 4px;
+                padding: 8px;
+                font-family: Consolas, "Microsoft YaHei";
+                font-size: 14px;
+                }
+                QLineEdit:focus {
+                border: 1px solid #00FFCC;
+                }
+
+                /*
+                右侧视频窗口通用样式：
+                使用 2px 的暗色描边，确保与选中时的边框宽度一致，防止视频画面被挤压缩放。
+                如果你发现画面边缘仍然被遮挡，可以取消下方 padding 的注释。
+                */
+                QWidget[videoBox="true"] {
+                background-color: #000000;
+                border: 2px solid #232332;
+                /* padding: 2px; */
+                }
+
+                /* 视频窗口选中高亮状态：只改变描边颜色，不改变其他属性以防影响播放器渲染 */
+                QWidget[videoBox="true"][selected="true"] {
+                border: 2px solid #00FFCC;
+                }
+            </string>
+        </property>
+
+        <layout class="QHBoxLayout" name="mainLayout">
+            <property name="spacing">
+                <number>0</number>
+            </property>
+            <property name="leftMargin">
+                <number>0</number>
+            </property>
+            <property name="topMargin">
+                <number>0</number>
+            </property>
+            <property name="rightMargin">
+                <number>0</number>
+            </property>
+            <property name="bottomMargin">
+                <number>0</number>
+            </property>
+
+            <!-- 左侧面板 -->
+            <item>
+                <widget class="QWidget" name="leftPanel">
+                    <property name="minimumSize">
+                        <size>
+                            <width>350</width>
+                            <height>0</height>
+                        </size>
+                    </property>
+                    <property name="maximumSize">
+                        <size>
+                            <width>350</width>
+                            <height>16777215</height>
+                        </size>
+                    </property>
+                    <layout class="QVBoxLayout" name="verticalLayout">
+                        <property name="spacing">
+                            <number>15</number>
+                        </property>
+                        <property name="leftMargin">
+                            <number>25</number>
+                        </property>
+                        <property name="topMargin">
+                            <number>50</number>
+                        </property>
+                        <property name="rightMargin">
+                            <number>25</number>
+                        </property>
+                        <property name="bottomMargin">
+                            <number>30</number>
+                        </property>
+                        <item>
+                            <widget class="QLabel" name="lblTitle">
+                                <property name="text">
+                                    <string>当前播放流地址</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QLineEdit" name="input">
+                                <property name="placeholderText">
+                                    <string>请选择正在播放的画面...</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <spacer name="verticalSpacer">
+                                <property name="orientation">
+                                    <enum>Qt::Vertical</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                    <size>
+                                        <width>20</width>
+                                        <height>40</height>
+                                    </size>
+                                </property>
+                            </spacer>
+                        </item>
+                    </layout>
+                </widget>
+            </item>
+
+            <!-- 右侧九宫格视频区域 -->
+            <item>
+                <widget class="QWidget" name="rightPanel">
+                    <layout class="QGridLayout" name="gridLayout">
+                        <!-- 减小外边距 -->
+                        <property name="leftMargin">
+                            <number>4</number>
+                        </property>
+                        <property name="topMargin">
+                            <number>4</number>
+                        </property>
+                        <property name="rightMargin">
+                            <number>4</number>
+                        </property>
+                        <property name="bottomMargin">
+                            <number>4</number>
+                        </property>
+                        <!-- 减小九个框之间的间隔，从 15 改为 2，显得紧密 -->
+                        <property name="spacing">
+                            <number>2</number>
+                        </property>
+                        <!-- 第一行 -->
+                        <item row="0" column="0"><widget class="VideoWidget" name="video_1"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                        <item row="0" column="1"><widget class="VideoWidget" name="video_2"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                        <item row="0" column="2"><widget class="VideoWidget" name="video_3"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                        <!-- 第二行 -->
+                        <item row="1" column="0"><widget class="VideoWidget" name="video_4"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                        <item row="1" column="1"><widget class="VideoWidget" name="video_5"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                        <item row="1" column="2"><widget class="VideoWidget" name="video_6"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                        <!-- 第三行 -->
+                        <item row="2" column="0"><widget class="VideoWidget" name="video_7"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                        <item row="2" column="1"><widget class="VideoWidget" name="video_8"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                        <item row="2" column="2"><widget class="VideoWidget" name="video_9"><property name="videoBox" stdset="0"><bool>true</bool></property></widget></item>
+                    </layout>
+                </widget>
+            </item>
+        </layout>
+    </widget>
+    <customwidgets>
+        <customwidget>
+            <class>VideoWidget</class>
+            <extends>QWidget</extends>
+            <header>widget/videoWidget.h</header>
+        </customwidget>
+    </customwidgets>
+    <resources/>
+    <connections/>
+</ui>

@@ -17,6 +17,10 @@ namespace {
     constexpr uint32_t CHANNEL_COUNT = 2;
 
     void updateAudioFrameSize(AudioFrame* audioFrame, int buffSize) {
+        if (!audioFrame->data && buffSize == 0) {
+            return;
+        }
+
         memset(audioFrame->data, 0, audioFrame->capacity);
 
         if (audioFrame->capacity >= buffSize) {
@@ -36,12 +40,28 @@ AudioDecoder::AudioDecoder() {
     codec_ = avcodec_find_decoder(AV_CODEC_ID_AAC);
     codecCtx_ = avcodec_alloc_context3(codec_);
     parserCtx_ = av_parser_init(AV_CODEC_ID_AAC);
+
+    convertedFrame_ = av_frame_alloc();
+    if (!convertedFrame_) {
+        av_log(nullptr, AV_LOG_ERROR, "av_frame_alloc failed\n");
+    }
 }
 
 AudioDecoder::~AudioDecoder() {
+    if (codecCtx_) {
+        avcodec_flush_buffers(codecCtx_);
+        avcodec_free_context(&codecCtx_);
+        codecCtx_ = nullptr;
+    }
+
     if (swrCtx_) {
         swr_free(&swrCtx_);
         swrCtx_ = nullptr;
+    }
+
+    if (convertedFrame_) {
+        av_frame_free(&convertedFrame_);
+        convertedFrame_ = nullptr;
     }
 }
 
@@ -83,19 +103,16 @@ void AudioDecoder::decode(const char* data, uint32_t size, int64_t pts, OnAudioF
         while (avcodec_receive_frame(codecCtx_, frame) == 0) {
             refresh(frame);
 
-            AVFrame* convertedFrame = framePool_->get();
-            if (!convertFrame(frame, convertedFrame)) {
-                framePool_->put(convertedFrame);
+            if (!convertFrame(frame, convertedFrame_)) {
                 break;
             }
-            const int bufferSize = av_samples_get_buffer_size(nullptr, convertedFrame->channels,
-                convertedFrame->nb_samples, (AVSampleFormat)convertedFrame->format, 1);
+            const int bufferSize = av_samples_get_buffer_size(nullptr, convertedFrame_->channels,
+                convertedFrame_->nb_samples, (AVSampleFormat)convertedFrame_->format, 1);
             audioFrame_.len = bufferSize;
             updateAudioFrameSize(&audioFrame_, bufferSize);
-            memcpy(audioFrame_.data, convertedFrame->data[0], bufferSize);
+            memcpy(audioFrame_.data, convertedFrame_->data[0], bufferSize);
             audioFrame_.pts = pts;
             func(audioFrame_);
-            framePool_->put(convertedFrame);
 
             // 在循环使用时，先释放之前的
             av_frame_unref(frame);

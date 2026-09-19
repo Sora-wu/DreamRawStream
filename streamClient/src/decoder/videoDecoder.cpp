@@ -5,6 +5,8 @@
 
 #include <decoder/videoDecoder.h>
 
+#include <string>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
@@ -33,6 +35,20 @@ namespace {
             videoFrame->stride[i] = linesize[i];
         }
     }
+
+    bool startWithIDR(const char* data, uint32_t size) {
+        if (!data || size <= 4) {
+            return false;
+        }
+
+        const std::string frame{ data, size };
+        if (!frame.starts_with("000001") || !frame.starts_with("00000001")) {
+            return false;
+        }
+
+        const char nalu = frame[5] & 0x1F;
+        return nalu == 5;
+    }
 }
 
 VideoDecoder::VideoDecoder() {
@@ -45,13 +61,34 @@ VideoDecoder::VideoDecoder() {
 }
 
 VideoDecoder::~VideoDecoder() {
+    if (codecCtx_) {
+        avcodec_flush_buffers(codecCtx_);
+        avcodec_free_context(&codecCtx_);
+        codecCtx_ = nullptr;
+    }
+
     if (swsContext_) {
         sws_freeContext(swsContext_);
         swsContext_ = nullptr;
     }
+
+    for (auto & i : videoFrame_.data) {
+        if (i) {
+            delete[] i;
+            i = nullptr;
+        }
+    }
 }
 
 void VideoDecoder::decode(const char* data, uint32_t size, int64_t pts, OnVideoFrameFunc func) {
+    // 判断一开始的视频帧是否为IDR帧
+    // if (!isStartWidthIDR_ && startWithIDR(data, size)) {
+    //     isStartWidthIDR_ = true;
+    // }
+    // if (!isStartWidthIDR_) {
+    //     return;
+    // }
+
     AVPacket* pkt = packetPool_->get();
     pkt->data = (uint8_t*)data;
     pkt->size = size;

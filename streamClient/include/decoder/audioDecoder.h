@@ -45,6 +45,8 @@ private:
 
     std::unique_ptr<AVPacketPool> packetPool_;
     std::unique_ptr<AVFramePool> framePool_;
+    // 因为要复用内部缓冲区，单独拿出来
+    AVFrame* convertedFrame_ = nullptr;
 
     bool isOpened_ = false;
 };
