@@ -14,7 +14,7 @@
 #include <cassert>
 
 namespace {
-    constexpr size_t MAX_FRAMES = 100;
+    constexpr size_t MAX_FRAMES = 3;
 }
 
 DecodeScheduler::DecodeScheduler() {

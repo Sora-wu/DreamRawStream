@@ -10,8 +10,8 @@
 using namespace Dream;
 
 namespace {
-    constexpr uint32_t AUDIO_QUE_SIZE = 1024;
-    constexpr uint32_t VIDEO_QUE_SIZE = 256;
+    constexpr uint32_t AUDIO_QUE_SIZE = 8;
+    constexpr uint32_t VIDEO_QUE_SIZE = 3;
 }
 
 StreamServer::StreamServer(EventLoop* loop, const Address& address,

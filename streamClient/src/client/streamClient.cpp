@@ -9,46 +9,54 @@
 using namespace Dream;
 
 StreamClient::StreamClient(EventLoop* loop, const Address& address, uint32_t streamID) :
-   loop_(loop),
-   streamID_(streamID),
-   client_(std::make_unique<TcpClient>(loop_, address)) {
+    loop_(loop),
+    streamID_(streamID),
+    client_(std::make_unique<TcpClient>(loop_, address)) {
 }
 
 StreamClient::~StreamClient() {
-   disconnect();
+    disconnect();
 }
 
 void StreamClient::connect() {
-   client_->connect();
-   client_->setMessageCallback([this](TcpConnectionPtr conn, const Buffer& buffer) { return onMessage(conn, buffer); });
+    client_->connect();
+    client_->setMessageCallback([this](TcpConnectionPtr conn, const Buffer& buffer) {
+        return onMessage(conn, buffer);
+    });
 }
 
 void StreamClient::disconnect() const {
-   client_->disconnect();
-   client_->setMessageCallback(nullptr);
+    client_->disconnect();
+    client_->setMessageCallback(nullptr);
 }
 
+// 这里需要注意把消息包一次性全部都读出来，不然生产跟不上消费
+// 导致延迟越来越大
 uint32_t StreamClient::onMessage(TcpConnectionPtr conn, const Buffer& buffer) {
-   if (buffer.readableSize() < sizeof(FrameHeader)) {
-      // 连包头的大小都没有，直接返回
-      return 0;
-   }
+    uint32_t consumedTotal = 0;
 
-   FrameHeader header{};
-   memcpy(&header, buffer.peek().data(), sizeof(FrameHeader));
-   const uint32_t headerSize = sizeof(FrameHeader) + header.size;
-   if (buffer.readableSize() < headerSize) {
-      return 0;
-   }
+    while (true) {
+        if (buffer.readableSize() < consumedTotal + sizeof(FrameHeader)) {
+            break; // 不足一个包头，等下一次数据
+        }
 
-   // 取出payload
-   char* payload = pool_.allocate(header.size);
-   memcpy(payload, buffer.peek().data() + sizeof(FrameHeader), header.size);
+        FrameHeader header{};
+        memcpy(&header, buffer.peek().data() + consumedTotal, sizeof(FrameHeader));
+        const uint32_t headerSize = sizeof(FrameHeader) + header.size;
+        if (buffer.readableSize() < consumedTotal + headerSize) {
+            break; // 不足一个完整帧，等下一次数据
+        }
 
-   DecodeFrame df{};
-   df.streamID = streamID_;
-   df.frame = Frame{ (FrameType)header.type, PooledBuffer{ &pool_, payload, header.size }, header.pts };
-   handle(&df);
+        char* payload = pool_.allocate(header.size);
+        memcpy(payload, buffer.peek().data() + consumedTotal + sizeof(FrameHeader), header.size);
 
-   return headerSize;
+        DecodeFrame df{};
+        df.streamID = streamID_;
+        df.frame = Frame{(FrameType)header.type, PooledBuffer{&pool_, payload, header.size}, header.pts};
+        handle(&df);
+
+        consumedTotal += headerSize;
+    }
+
+    return consumedTotal; // handleRead 会一次性 consume 这么多
 }
