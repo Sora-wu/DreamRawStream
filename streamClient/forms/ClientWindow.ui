@@ -46,21 +46,8 @@
                 border: 1px solid #00FFCC;
                 }
 
-                /*
-                右侧视频窗口通用样式：
-                使用 2px 的暗色描边，确保与选中时的边框宽度一致，防止视频画面被挤压缩放。
-                如果你发现画面边缘仍然被遮挡，可以取消下方 padding 的注释。
-                */
-                QWidget[videoBox="true"] {
-                background-color: #000000;
-                border: 2px solid #232332;
-                /* padding: 2px; */
-                }
-
-                /* 视频窗口选中高亮状态：只改变描边颜色，不改变其他属性以防影响播放器渲染 */
-                QWidget[videoBox="true"][selected="true"] {
-                border: 2px solid #00FFCC;
-                }
+                /* 视频窗口描边与选中高亮由 VideoWidget::paintGL 中的 drawSelectionBorder 绘制，
+                   QOpenGLWidget 不支持用样式表绘制 background/border */
             </string>
         </property>
 

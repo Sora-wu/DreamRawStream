@@ -12,12 +12,19 @@
 #include <QOpenGLFunctions_4_5_Core>
 #include <QMutex>
 
+class QPainter;
+
 class VideoWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core, public IVideoSink {
+    Q_OBJECT
+
 public:
     explicit VideoWidget(QWidget* parent = nullptr) : QOpenGLWidget(parent) {}
     ~VideoWidget() override;
 
     void onVideoFrame(const VideoFrame& videoFrame) override;
+
+    void setSelected(bool selected);
+    bool isSelected() const;
 
 protected:
     void initializeGL() override;
@@ -32,8 +39,11 @@ private:
     QRect updateItemRect();
     void updateMVP();
     void updateTexture(GLuint textureHandle, uint32_t textureIndex, uint32_t frameWidth, uint32_t frameHeight, int stride, char* data);
+    void drawSelectionBorder(QPainter& painter) const;
 
 private:
+    bool selected_ = false;
+
     GLuint program_{};
     GLuint vao_{};
     GLuint vbo_{};

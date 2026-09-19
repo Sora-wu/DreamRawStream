@@ -5,8 +5,6 @@
 
 #include <decoder/videoDecoder.h>
 
-#include <string>
-
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
@@ -36,18 +34,28 @@ namespace {
         }
     }
 
-    bool startWithIDR(const char* data, uint32_t size) {
-        if (!data || size <= 4) {
-            return false;
+    bool containsIDR(const uint8_t* data, uint32_t size) {
+        uint32_t i = 0;
+        while (i + 3 <= size) {
+            if (data[i] == 0x00 && data[i + 1] == 0x00) {
+                uint32_t hdr = 0;
+                if (data[i + 2] == 0x01) {
+                    hdr = 3;                                  // 00 00 01
+                } else if (i + 4 <= size && data[i + 2] == 0x00 && data[i + 3] == 0x01) {
+                    hdr = 4;                                  // 00 00 00 01
+                } else {
+                    ++i;
+                    continue;
+                }
+                uint32_t nal = i + hdr;
+                if (nal >= size) break;
+                if ((data[nal] & 0x1F) == 5) return true;     // IDR slice
+                i = nal + 1;
+            } else {
+                ++i;
+            }
         }
-
-        const std::string frame{ data, size };
-        if (!frame.starts_with("000001") || !frame.starts_with("00000001")) {
-            return false;
-        }
-
-        const char nalu = frame[5] & 0x1F;
-        return nalu == 5;
+        return false;
     }
 }
 
@@ -57,12 +65,13 @@ VideoDecoder::VideoDecoder() {
 
     const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_H264);
     codecCtx_ = avcodec_alloc_context3(codec);
-    avcodec_open2(codecCtx_, codec, nullptr);
+    if (avcodec_open2(codecCtx_, codec, nullptr) < 0) {
+        av_log(nullptr, AV_LOG_ERROR, "avcodec_open2 failed\n");
+    }
 }
 
 VideoDecoder::~VideoDecoder() {
     if (codecCtx_) {
-        avcodec_flush_buffers(codecCtx_);
         avcodec_free_context(&codecCtx_);
         codecCtx_ = nullptr;
     }
@@ -81,13 +90,10 @@ VideoDecoder::~VideoDecoder() {
 }
 
 void VideoDecoder::decode(const char* data, uint32_t size, int64_t pts, OnVideoFrameFunc func) {
-    // 判断一开始的视频帧是否为IDR帧
-    // if (!isStartWidthIDR_ && startWithIDR(data, size)) {
-    //     isStartWidthIDR_ = true;
-    // }
-    // if (!isStartWidthIDR_) {
-    //     return;
-    // }
+    // 保证第一帧能够解出画面
+    if (!isStarted_ && !containsIDR((const uint8_t*)data, size)) {
+        return;
+    }
 
     AVPacket* pkt = packetPool_->get();
     pkt->data = (uint8_t*)data;
@@ -102,6 +108,7 @@ void VideoDecoder::decode(const char* data, uint32_t size, int64_t pts, OnVideoF
 
     AVFrame* frame = framePool_->get();
     while (avcodec_receive_frame(codecCtx_, frame) == 0) {
+        isStarted_ = true;
         refresh(frame);
         sws_scale(swsContext_, frame->data, frame->linesize,
             0, frame->height,

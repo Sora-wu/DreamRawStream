@@ -34,34 +34,38 @@ DecodeScheduler::DecodeScheduler() {
     }
 }
 
-DecodeScheduler::~DecodeScheduler() {
-    stop();
-}
+DecodeScheduler::~DecodeScheduler() {}
 
 void DecodeScheduler::setVideoSink(uint32_t streamID, IVideoSink* sink) {
     if (streamID < MAX_STREAM_COUNT) {
-        videoSinks_[streamID] = std::move(sink);
+        videoSinks_[streamID] = sink;
     }
 }
 
 void DecodeScheduler::setAudioSink(uint32_t streamID, IAudioSink* sink) {
     if (streamID < MAX_STREAM_COUNT) {
-        audioSinks_[streamID] = std::move(sink);
+        audioSinks_[streamID] = sink;
     }
 }
 
 void DecodeScheduler::stop() {
-    std::unique_lock lock(mtx_);
-    readyQue_.clear();
+    {
+        std::unique_lock lock(mtx_);
+        readyQue_.clear();
+        for (auto& thread : threads_) {
+            thread.request_stop();
+        }
+
+        for (auto& que : streamsQues_) {
+            que.close();
+        }
+
+        cv_.notify_all();
+    }
+
     for (auto& thread : threads_) {
-        thread.request_stop();
+        thread.join();
     }
-
-    for (auto& que : streamsQues_) {
-        que.close();
-    }
-
-    cv_.notify_all();
 }
 
 void DecodeScheduler::handle(void* data) {

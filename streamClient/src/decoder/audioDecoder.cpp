@@ -17,7 +17,7 @@ namespace {
     constexpr uint32_t CHANNEL_COUNT = 2;
 
     void updateAudioFrameSize(AudioFrame* audioFrame, int buffSize) {
-        if (!audioFrame->data && buffSize == 0) {
+        if (!audioFrame->data || buffSize == 0) {
             return;
         }
 
@@ -49,9 +49,13 @@ AudioDecoder::AudioDecoder() {
 
 AudioDecoder::~AudioDecoder() {
     if (codecCtx_) {
-        avcodec_flush_buffers(codecCtx_);
         avcodec_free_context(&codecCtx_);
         codecCtx_ = nullptr;
+    }
+
+    if (parserCtx_) {
+        av_parser_close(parserCtx_);
+        parserCtx_ = nullptr;
     }
 
     if (swrCtx_) {
@@ -62,6 +66,11 @@ AudioDecoder::~AudioDecoder() {
     if (convertedFrame_) {
         av_frame_free(&convertedFrame_);
         convertedFrame_ = nullptr;
+    }
+
+    if (audioFrame_.data) {
+        delete[] audioFrame_.data;
+        audioFrame_.data = nullptr;
     }
 }
 
@@ -82,7 +91,10 @@ void AudioDecoder::decode(const char* data, uint32_t size, int64_t pts, OnAudioF
         in += consumed;
 
         if (!isOpened_ && codecCtx_->extradata_size > 0) {
-            avcodec_open2(codecCtx_, codec_, nullptr);
+            if (avcodec_open2(codecCtx_, codec_, nullptr) < 0) {
+                av_log(nullptr, AV_LOG_ERROR, "avcodec_open2 failed\n");
+                return;
+            }
             isOpened_ = true;
         }
         if (!isOpened_) {

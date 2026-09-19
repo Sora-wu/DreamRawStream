@@ -36,7 +36,7 @@ private:
     int cacheHeight_ = 0;
     AVPixelFormat cacheFormat_ = AV_PIX_FMT_NONE;
     VideoFrame videoFrame_{};
-    bool isStartWidthIDR_ = false;
+    bool isStarted_ = false;
 
     std::unique_ptr<AVFramePool> framePool_;
     std::unique_ptr<AVPacketPool> packetPool_;

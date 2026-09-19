@@ -4,6 +4,7 @@
 //
 
 #include <widget/clientWindow.h>
+#include <widget/videoWidget.h>
 #include "ui_ClientWindow.h"
 #include <QEvent>
 #include <QStyle>
@@ -21,6 +22,11 @@ ClientWindow::ClientWindow(QWidget* parent) :
     for (QWidget* w : videoWidgets_) {
         w->installEventFilter(this);
     }
+
+    // 默认选中九宫格第一个视频窗口，方便后续只播放选中窗体的音频
+    if (!videoWidgets_.isEmpty()) {
+        videoWidgets_.first()->setSelected(true);
+    }
 }
 
 ClientWindow::~ClientWindow() {
@@ -37,19 +43,12 @@ VideoWidget* ClientWindow::getVideoWidget(uint32_t index) const {
 
 bool ClientWindow::eventFilter(QObject* watched, QEvent* event) {
     if (event->type() == QEvent::MouseButtonPress) {
-        QWidget *clickedWidget = qobject_cast<QWidget*>(watched);
+        VideoWidget* clickedWidget = qobject_cast<VideoWidget*>(watched);
         if (clickedWidget && videoWidgets_.contains(clickedWidget)) {
 
             // 1. 处理高亮状态
-            for (QWidget* w : videoWidgets_) {
-                if (w == clickedWidget) {
-                    w->setProperty("selected", true);
-                } else {
-                    w->setProperty("selected", false);
-                }
-                // 刷新样式表，使其立即生效
-                w->style()->unpolish(w);
-                w->style()->polish(w);
+            for (VideoWidget* w : videoWidgets_) {
+                w->setSelected(w == clickedWidget);
             }
 
             // 2. 判断是否播放，更新左侧输入框

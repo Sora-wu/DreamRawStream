@@ -41,7 +41,7 @@ struct VideoFrame {
                 data[i] = new char[len[i]];
             }
 
-            memcpy(data[i], o.data[i], len[i]);
+            memcpy(data[i], o.data[i], o.len[i]);
             stride[i] = o.stride[i];
         }
 

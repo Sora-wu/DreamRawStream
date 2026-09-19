@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
     const int result = a.exec();
 
     clients.clear();
+    scheduler.stop();
     netLoop.quit();
 
     return result;

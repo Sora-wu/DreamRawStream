@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QMutexLocker>
 #include <QMatrix4x4>
+#include <QPainter>
 
 namespace {
     const double EPSILON = 1e-8;
@@ -34,6 +35,18 @@ VideoWidget::~VideoWidget() {
     makeCurrent();
     cleanup();
     doneCurrent();
+}
+
+void VideoWidget::setSelected(bool selected) {
+    if (selected_ == selected) {
+        return;
+    }
+    selected_ = selected;
+    update();
+}
+
+bool VideoWidget::isSelected() const {
+    return selected_;
 }
 
 void VideoWidget::onVideoFrame(const VideoFrame& videoFrame) {
@@ -104,11 +117,13 @@ void VideoWidget::resizeGL(int width, int height) {
 }
 
 void VideoWidget::paintGL() {
+    QPainter painter(this);
+
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glDisable(GL_BLEND);
 
-    glClearColor(0.0f, 0.0f, 0.0f,1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(program_);
@@ -118,17 +133,12 @@ void VideoWidget::paintGL() {
     {
         QMutexLocker locker(&mutex_);
 
-        if (!videoFrame_.data[0]) {
-            glBindVertexArray(0);
-            glUseProgram(0);
-            update();
-            return;
-        }
-
-        for (uint32_t i = 0; i < 3; ++i) {
-            uint32_t textureHandle = texture_[i];
-            updateTexture(textureHandle, i, videoFrame_.frameWidth, videoFrame_.frameHeight,
-                videoFrame_.stride[i], videoFrame_.data[i]);
+        if (videoFrame_.data[0]) {
+            for (uint32_t i = 0; i < 3; ++i) {
+                uint32_t textureHandle = texture_[i];
+                updateTexture(textureHandle, i, videoFrame_.frameWidth, videoFrame_.frameHeight,
+                    videoFrame_.stride[i], videoFrame_.data[i]);
+            }
         }
     }
 
@@ -136,6 +146,17 @@ void VideoWidget::paintGL() {
 
     glBindVertexArray(0);
     glUseProgram(0);
+
+    drawSelectionBorder(painter);
+    painter.end();
+}
+
+void VideoWidget::drawSelectionBorder(QPainter& painter) const {
+    QPen pen(selected_ ? QColor(0x00, 0xFF, 0xCC) : QColor(0x23, 0x23, 0x32));
+    pen.setWidth(2);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(rect().adjusted(1, 1, -1, -1));
 }
 
 bool VideoWidget::compileShader() {
