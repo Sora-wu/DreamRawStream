@@ -6,7 +6,6 @@
 #include <widget/clientWindow.h>
 #include <widget/videoWidget.h>
 #include <client/decodeScheduler.h>
-#include <client/streamClient.h>
 #include <audio/audioBufferDevice.h>
 
 #include <thread>
@@ -57,16 +56,6 @@ namespace {
         sink->start(&audioBufferDevice);
         return sink;
     };
-
-    void setupClient(Dream::EventLoop& netLoop, std::vector<std::unique_ptr<StreamClient>>& clients, DecodeScheduler& scheduler) {
-        const Dream::Address addr{ 11451 };
-        for (uint32_t i = 0; i < DecodeScheduler::MAX_STREAM_COUNT; ++i) {
-            std::unique_ptr<StreamClient> client = std::make_unique<StreamClient>(&netLoop, addr, i);
-            client->setNextHandler(&scheduler);
-            client->connect();
-            clients.push_back(std::move(client));
-        }
-    }
 }
 
 int main(int argc, char *argv[]) {
@@ -79,21 +68,16 @@ int main(int argc, char *argv[]) {
     });
 
     DecodeScheduler scheduler{};
-    ClientWindow w{ &scheduler };
+    ClientWindow w{ &scheduler, &netLoop };
     setupVideoWidget(scheduler, w);
 
     // 没有引入回声消除，所以这里默认注释
-    AudioBufferDevice audioBufferDevice{};
-    std::unique_ptr<QAudioSink> sink = setupAudio(scheduler, audioBufferDevice);
-
-    std::vector<std::unique_ptr<StreamClient>> clients;
-    setupClient(netLoop, clients, scheduler);
+    // AudioBufferDevice audioBufferDevice{};
+    // std::unique_ptr<QAudioSink> sink = setupAudio(scheduler, audioBufferDevice);
 
     w.show();
-
     const int result = a.exec();
 
-    clients.clear();
     scheduler.stop();
     netLoop.quit();
 
