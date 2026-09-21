@@ -52,7 +52,27 @@ struct VideoFrame {
 // UI层视频数据，与ffmpeg细节分离
 struct AudioFrame {
     char* data{};
-    int len{};
-    uint32_t capacity = 0;
+    int stride{};
+    uint32_t len = 0;
     int64_t pts{};
+    bool updated = false;
+
+    AudioFrame& operator=( const AudioFrame& o) {
+        if (!o.data || o.len == 0) {
+            return *this;
+        }
+
+        pts = o.pts;
+        updated = o.updated;
+
+        if (len < o.len) {
+            delete[] data;
+            len = o.len;
+            data = new char[len];
+        }
+
+        memcpy(data, o.data, o.len);
+        stride = o.stride;
+        return *this;
+    }
 };

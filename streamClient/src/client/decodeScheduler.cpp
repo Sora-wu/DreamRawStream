@@ -42,10 +42,13 @@ void DecodeScheduler::setVideoSink(uint32_t streamID, IVideoSink* sink) {
     }
 }
 
-void DecodeScheduler::setAudioSink(uint32_t streamID, IAudioSink* sink) {
-    if (streamID < MAX_STREAM_COUNT) {
-        audioSinks_[streamID] = sink;
-    }
+void DecodeScheduler::setAudioSink(IAudioSink* sink) {
+    audioSink_ = sink;
+}
+
+void DecodeScheduler::setAudioStreamID(uint32_t streamID) {
+    std::unique_lock lock(mtx_);
+    audioStreamID_ = streamID;
 }
 
 void DecodeScheduler::stop() {
@@ -115,12 +118,21 @@ void DecodeScheduler::workerLoop(std::stop_token st) {
                     });
             }
             else if (frame.frame.type == FrameType::AUDIO) {
-                decoders_[streamID].audioDecoder->decode(frame.frame.buffer.data, frame.frame.buffer.size, frame.frame.pts,
-                    [this, streamID](const AudioFrame& audioFrame) {
-                        if (audioSinks_[streamID]) {
-                            audioSinks_[streamID]->onAudioFrame(audioFrame);
-                        }
-                    });
+                // 当前取到的流id是否与界面选择的id是一致的
+                bool isSelected = false;
+                {
+                    std::unique_lock lock(mtx_);
+                    isSelected = audioStreamID_ == streamID;
+                }
+
+                if (isSelected) {
+                    decoders_[streamID].audioDecoder->decode(frame.frame.buffer.data, frame.frame.buffer.size, frame.frame.pts,
+                        [this](const AudioFrame& audioFrame) {
+                            if (audioSink_) {
+                                audioSink_->onAudioFrame(audioFrame);
+                            }
+                        });
+                }
             }
         }
 

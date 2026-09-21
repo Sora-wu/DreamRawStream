@@ -9,8 +9,10 @@
 #include <QEvent>
 #include <QStyle>
 
-ClientWindow::ClientWindow(QWidget* parent) :
-    QWidget(parent), ui(new Ui::ClientWindow) {
+#include "client/decodeScheduler.h"
+
+ClientWindow::ClientWindow(DecodeScheduler* scheduler, QWidget* parent) :
+    scheduler_(scheduler), QWidget(parent), ui(new Ui::ClientWindow) {
     ui->setupUi(this);
 
     // 将 9 个视频窗口存入数组，方便管理
@@ -47,8 +49,12 @@ bool ClientWindow::eventFilter(QObject* watched, QEvent* event) {
         if (clickedWidget && videoWidgets_.contains(clickedWidget)) {
 
             // 1. 处理高亮状态
-            for (VideoWidget* w : videoWidgets_) {
+            for (uint32_t i = 0; i < videoWidgets_.size(); ++i) {
+                VideoWidget* w = videoWidgets_[i];
                 w->setSelected(w == clickedWidget);
+                if (w == clickedWidget) {
+                    scheduler_->setAudioStreamID(i);
+                }
             }
 
             // 2. 判断是否播放，更新左侧输入框

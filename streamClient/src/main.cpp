@@ -7,12 +7,16 @@
 #include <widget/videoWidget.h>
 #include <client/decodeScheduler.h>
 #include <client/streamClient.h>
+#include <audio/audioBufferDevice.h>
 
 #include <thread>
 #include <vector>
+#include <memory>
 
 #include <QApplication>
 #include <QSurfaceFormat>
+#include <QAudioSink>
+#include <QMediaDevices>
 
 #include <DreamNet/DreamNet.h>
 
@@ -30,9 +34,29 @@ namespace {
     void setupVideoWidget(DecodeScheduler& scheduler, ClientWindow& w) {
         for (uint32_t i = 0; i < DecodeScheduler::MAX_STREAM_COUNT; ++i) {
             scheduler.setVideoSink(i, w.getVideoWidget(i));
-            // scheduler.setAudioSink(i, w.getVideoWidget(i));
         }
     }
+
+    std::unique_ptr<QAudioSink> setupAudio(DecodeScheduler& scheduler, AudioBufferDevice& audioBufferDevice) {
+        QAudioFormat format;
+        format.setSampleRate(AudioBufferDevice::SAMPLE_RATE);
+        format.setChannelCount(AudioBufferDevice::CHANNEL_COUNT);
+        format.setSampleFormat(QAudioFormat::Int16);
+        QAudioDevice audioDevice = QMediaDevices::defaultAudioOutput();
+        if (!audioDevice.isFormatSupported(format)) {
+            qInfo() << "sample rate: " << format.sampleRate();
+            qInfo() << "channel count: " << format.channelCount();
+            qWarning() << "can not support this audio format or detect any audio device, will play without audio";
+
+            return nullptr;
+        }
+
+        scheduler.setAudioSink(&audioBufferDevice);
+
+        std::unique_ptr<QAudioSink> sink = std::make_unique<QAudioSink>(audioDevice, format);
+        sink->start(&audioBufferDevice);
+        return sink;
+    };
 
     void setupClient(Dream::EventLoop& netLoop, std::vector<std::unique_ptr<StreamClient>>& clients, DecodeScheduler& scheduler) {
         const Dream::Address addr{ 11451 };
@@ -55,8 +79,12 @@ int main(int argc, char *argv[]) {
     });
 
     DecodeScheduler scheduler{};
-    ClientWindow w;
+    ClientWindow w{ &scheduler };
     setupVideoWidget(scheduler, w);
+
+    // 没有引入回声消除，所以这里默认注释
+    AudioBufferDevice audioBufferDevice{};
+    std::unique_ptr<QAudioSink> sink = setupAudio(scheduler, audioBufferDevice);
 
     std::vector<std::unique_ptr<StreamClient>> clients;
     setupClient(netLoop, clients, scheduler);

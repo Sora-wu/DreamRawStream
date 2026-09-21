@@ -21,10 +21,10 @@ public:
     explicit VideoWidget(QWidget* parent = nullptr) : QOpenGLWidget(parent) {}
     ~VideoWidget() override;
 
-    void onVideoFrame(const VideoFrame& videoFrame) override;
-
     void setSelected(bool selected);
     bool isSelected() const;
+
+    void onVideoFrame(const VideoFrame& videoFrame) override;
 
 protected:
     void initializeGL() override;

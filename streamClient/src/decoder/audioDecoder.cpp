@@ -17,29 +17,31 @@ namespace {
     constexpr uint32_t CHANNEL_COUNT = 2;
 
     void updateAudioFrameSize(AudioFrame* audioFrame, int buffSize) {
-        if (!audioFrame->data || buffSize == 0) {
+        if (buffSize == 0) {
             return;
         }
 
-        memset(audioFrame->data, 0, audioFrame->capacity);
-
-        if (audioFrame->capacity >= buffSize) {
+        if (audioFrame->len >= buffSize) {
             return;
         }
 
         delete[] audioFrame->data;
         audioFrame->data = new char[buffSize]{};
+        audioFrame->stride = buffSize;
         audioFrame->len = buffSize;
-        audioFrame->capacity = buffSize;
     }
 }
 
 AudioDecoder::AudioDecoder() {
     packetPool_ = std::make_unique<AVPacketPool>();
+    framePool_ = std::make_unique<AVFramePool>();
 
-    codec_ = avcodec_find_decoder(AV_CODEC_ID_AAC);
-    codecCtx_ = avcodec_alloc_context3(codec_);
+    const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_AAC);
+    codecCtx_ = avcodec_alloc_context3(codec);
     parserCtx_ = av_parser_init(AV_CODEC_ID_AAC);
+    if (avcodec_open2(codecCtx_, codec, nullptr) < 0) {
+        av_log(nullptr, AV_LOG_ERROR, "avcodec_open2 failed\n");
+    }
 
     convertedFrame_ = av_frame_alloc();
     if (!convertedFrame_) {
@@ -90,17 +92,6 @@ void AudioDecoder::decode(const char* data, uint32_t size, int64_t pts, OnAudioF
         inSize -= consumed;
         in += consumed;
 
-        if (!isOpened_ && codecCtx_->extradata_size > 0) {
-            if (avcodec_open2(codecCtx_, codec_, nullptr) < 0) {
-                av_log(nullptr, AV_LOG_ERROR, "avcodec_open2 failed\n");
-                return;
-            }
-            isOpened_ = true;
-        }
-        if (!isOpened_) {
-            continue;
-        }
-
         AVPacket* pkt = packetPool_->get();
         pkt->data = out;
         pkt->size = outSize;
@@ -120,10 +111,10 @@ void AudioDecoder::decode(const char* data, uint32_t size, int64_t pts, OnAudioF
             }
             const int bufferSize = av_samples_get_buffer_size(nullptr, convertedFrame_->channels,
                 convertedFrame_->nb_samples, (AVSampleFormat)convertedFrame_->format, 1);
-            audioFrame_.len = bufferSize;
             updateAudioFrameSize(&audioFrame_, bufferSize);
             memcpy(audioFrame_.data, convertedFrame_->data[0], bufferSize);
             audioFrame_.pts = pts;
+            audioFrame_.updated = true;
             func(audioFrame_);
 
             // 在循环使用时，先释放之前的

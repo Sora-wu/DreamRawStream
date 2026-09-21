@@ -1,6 +1,6 @@
 file(GLOB_RECURSE SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/* ${CMAKE_CURRENT_SOURCE_DIR}/src/*)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Multimedia)
 qt_standard_project_setup()
 set(CMAKE_AUTORCC ON)
 
@@ -19,7 +19,7 @@ target_include_directories(streamClient
         ${FFMPEG_ROOT}/include
 )
 target_link_directories(streamClient PRIVATE ${FFMPEG_ROOT}/lib)
-target_link_libraries(streamClient PRIVATE Qt::Core Qt::OpenGLWidgets Qt::Widgets Dream::Net ${FFMPEG_LIBS})
+target_link_libraries(streamClient PRIVATE Qt::Core Qt6::Multimedia Qt::OpenGLWidgets Qt::Widgets Dream::Net ${FFMPEG_LIBS})
 
 install(TARGETS streamClient
     BUNDLE  DESTINATION .

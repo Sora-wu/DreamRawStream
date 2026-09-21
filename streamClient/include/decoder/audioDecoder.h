@@ -33,7 +33,6 @@ private:
     bool convertFrame(AVFrame* before, AVFrame* after) const;
 
 private:
-    const AVCodec* codec_ = nullptr;
     AVCodecContext* codecCtx_ = nullptr;
     AVCodecParserContext* parserCtx_ = nullptr;
     AudioFrame audioFrame_{};
@@ -47,6 +46,4 @@ private:
     std::unique_ptr<AVFramePool> framePool_;
     // 因为要复用内部缓冲区，单独拿出来
     AVFrame* convertedFrame_ = nullptr;
-
-    bool isOpened_ = false;
 };

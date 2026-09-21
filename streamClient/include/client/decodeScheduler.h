@@ -35,7 +35,8 @@ public:
     ~DecodeScheduler() override;
 
     void setVideoSink(uint32_t streamID, IVideoSink* sink);
-    void setAudioSink(uint32_t streamID, IAudioSink* sink);
+    void setAudioSink(IAudioSink* sink);
+    void setAudioStreamID(uint32_t streamID);
 
     void stop();
 
@@ -57,6 +58,7 @@ private:
     std::vector<uint32_t> dropCount_;
 
     std::array<StreamDecoder, MAX_STREAM_COUNT> decoders_;
-    std::array<IVideoSink*, MAX_STREAM_COUNT> videoSinks_;
-    std::array<IAudioSink*, MAX_STREAM_COUNT> audioSinks_;
+    std::array<IVideoSink*, MAX_STREAM_COUNT> videoSinks_;          // 视频画面可以有多个
+    IAudioSink* audioSink_ = nullptr;                               // 音频只有一个，不然多个画面的音频都播放听不清
+    uint32_t audioStreamID_ = 0;
 };
